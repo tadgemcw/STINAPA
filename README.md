@@ -1,6 +1,10 @@
-Water Temperature Analysis of Bonaire
-Tadge McWilliams, in collaboration with [STINAPA](https://stinapabonaire.org)
-
+---
+title: "Water Temperature Analysis of Bonaire"
+author: "Tadge McWilliams, in collaboration with [STINAPA](https://stinapabonaire.org)"
+date: "TBD"
+output: html_document:
+          toc: TRUE
+---
 
 ```{r}
 library(tidyverse)
