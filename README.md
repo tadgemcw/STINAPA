@@ -1,6 +1,6 @@
-title: "Water Temperature Analysis of Bonaire"
-author: "Tadge McWilliams, in collaboration with STINAPA"
-Water Temp and Light Project
+Water Temperature Analysis of Bonaire
+Tadge McWilliams, in collaboration with STINAPA
+
 
 ```{r}
 library(tidyverse)
