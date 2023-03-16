@@ -38,8 +38,18 @@ ggplot(tl2020, aes(temp_c)) +
   geom_boxplot() +
   xlab("Water Temp") +
   ggtitle("2020 Data")
-  
-ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) + 
+
+ggplot(tl2020, aes(temp_c)) +
+  geom_bar(binwidth = 1) + 
+  scale_x_continuous(limits = c(25, 35)) +
+  facet_wrap(~depth_m)
+
+quant2020 <- quantile(tl2020$temp_c, probs = c(0.25, 0.75))
+
+tl2020_capped <- tl2020 %>% filter(temp_c < (quant2020[2] + (1.5 * IQR(temp_c))))
+tl2020_outs <- tl2020 %>% filter(temp_c >= (quant2020[2] + (1.5 * IQR(temp_c)))) 
+
+ggplot(tl2020_capped, aes(x=factor(month(date)), y = temp_c)) + 
     stat_boxplot(geom ='errorbar', width = 0.2) + 
     geom_boxplot() +
     xlab("Month") + 
@@ -118,6 +128,9 @@ tl2020 %>%
   group_by(depth_m) %>%
   ggplot(aes(date, temp_c, color = factor(depth_m))) +
   geom_line()
+
+
+
 
 ### Looking at Time Series for Light
 tl2020 %>% 
