@@ -40,23 +40,41 @@ ggplot(tl2020, aes(temp_c)) +
   ggtitle("2020 Data")
 
 ggplot(tl2020, aes(temp_c)) +
-  geom_bar(binwidth = 1) + 
+  geom_bar(binwidth = 0.5) + 
   scale_x_continuous(limits = c(25, 35)) +
-  facet_wrap(~depth_m)
+  facet_wrap(~depth_m) +
+  ggtitle("2020 Distribution")
 
 quant2020 <- quantile(tl2020$temp_c, probs = c(0.25, 0.75))
 
-tl2020_capped <- tl2020 %>% filter(temp_c < (quant2020[2] + (1.5 * IQR(temp_c))))
-tl2020_outs <- tl2020 %>% filter(temp_c >= (quant2020[2] + (1.5 * IQR(temp_c)))) 
+tl2020_capped <- tl2020 %>% filter(temp_c <= (quant2020[2] + (1.5 * IQR(temp_c))))
+tl2020_outliers <- tl2020 %>% filter(temp_c > (quant2020[2] + (1.5 * IQR(temp_c)))) 
+tl2020_outliers %>% group_by(date) %>%
+  summarize(avg_temp = mean(temp_c)) %>%
+  arrange(date)
 
-ggplot(tl2020_capped, aes(x=factor(month(date)), y = temp_c)) + 
+ggplot(tl2020, aes(x = temp_c)) + 
+  geom_bar() + 
+  geom_vline(xintercept = 31.883) +
+      annotate("text", x = 40, y = 40000, label = "Statistical Outlier") +
+  xlab("Water Temp") +
+  ggtitle("2020 Distribution")
+
+tl2020 %>% filter(month(date) == 9) %>%
+  summarize(max_temp = max(temp_c))
+
+ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) + 
     stat_boxplot(geom ='errorbar', width = 0.2) + 
     geom_boxplot() +
     xlab("Month") + 
     ylab("Water Temp") +
-    ggtitle("2020 Data")
+    ggtitle("2020 Data") +
+    geom_hline(yintercept = 33, col = "red") + 
+      annotate("text", x = 9, y = 36, label = "33 degrees", col = "red") +
+    geom_hline(yintercept = 31.623, col = "blue") +
+      annotate("text", x = 5, y = 34, label = "statistical outlier", col = "blue")
   
-### Reviewing 2021 Temp Data for Outliers
+#################### Reviewing 2021 Temp Data for Outliers
 summary(tl2021$temp_c)
 
 ggplot(tl2021, aes(temp_c)) + 
@@ -65,14 +83,41 @@ ggplot(tl2021, aes(temp_c)) +
   xlab("Water Temp") +
   ggtitle("2021 Data")
 
+ggplot(tl2021, aes(temp_c)) +
+  geom_bar(binwidth = 0.5) + 
+  scale_x_continuous(limits = c(24, 35)) +
+  facet_wrap(~depth_m) +
+  ggtitle("2021 Distribution")
+
+quant2021 <- quantile(tl2021$temp_c, probs = c(0.25, 0.75))
+
+tl2021_capped <- tl2021 %>% filter(temp_c < (quant2021[2] + (1.5 * IQR(temp_c))))
+tl2021_outliers <- tl2021 %>% filter(temp_c >= (quant2021[2] + (1.5 * IQR(temp_c)))) 
+tl2021_outliers %>% group_by(date) %>%
+  summarize(avg_temp = mean(temp_c)) %>%
+  arrange(date) %>% print(n=100)
+
+ggplot(tl2021, aes(x = temp_c)) + 
+  geom_bar() + 
+  geom_vline(xintercept = 31.623) + 
+    annotate("text", x = 38, y = 30000, label = "Statistical Outlier") +
+  xlab("Water Temp") +
+  ggtitle("2021 Distribution")
+
 ggplot(tl2021, aes(x=factor(month(date)), y = temp_c)) + 
   stat_boxplot(geom ='errorbar', width = 0.2) + 
   geom_boxplot() +
   xlab("Month") + 
   ylab("Water Temp") +
-  ggtitle("2021 Data")
+  ggtitle("2021 Data") +
+  geom_hline(yintercept = 33, col = "red") + 
+  annotate("text", x = 2, y = 36, label = "33 degrees", col = "red") +
+  geom_hline(yintercept = 31.623, col = "blue") +
+  annotate("text", x = 3, y = 34, label = "statistical outlier", col = "blue")
 
-### Reviewing 2022 Temp Data for Outliers
+tl2021 %>% filter(month(date) == 9 & temp_c < 40) %>%
+  summarize(max_temp_below_40 = max(temp_c))
+############## Reviewing 2022 Temp Data for Outliers
 summary(tl2022$temp_c)
 
 ggplot(tl2022, aes(temp_c)) + 
@@ -81,14 +126,48 @@ ggplot(tl2022, aes(temp_c)) +
   xlab("Water Temp") +
   ggtitle("2022 Data")
 
+ggplot(tl2022, aes(temp_c)) +
+  geom_bar(binwidth = 0.5) + 
+  scale_x_continuous(limits = c(24, 35)) +
+  facet_wrap(~depth_m) +
+  ggtitle("2022 Distribution")
+
+quant2022 <- quantile(tl2021$temp_c, probs = c(0.25, 0.75))
+
+tl2022_capped <- tl2022 %>% filter(temp_c < (quant2022[2] + (1.5 * IQR(temp_c))))
+tl2022_outliers <- tl2022 %>% filter(temp_c >= (quant2022[2] + (1.5 * IQR(temp_c)))) 
+tl2022_outliers %>% group_by(date) %>%
+  summarize(avg_temp = mean(temp_c)) %>%
+  arrange(date) %>%
+  print(n=100)
+
+ggplot(tl2022, aes(x = temp_c)) + 
+  geom_bar() + 
+  geom_vline(xintercept = 31.929) + 
+  annotate("text", x = 28, y = 18000, label = "Statistical Outlier") +
+  xlab("Water Temp") +
+  ggtitle("2022 Distribution")
+
+ggplot(tl2022_outliers, aes(temp_c)) + 
+  geom_bar() +
+  ggtitle("2022 Distribution of Statistical Outliers")
+
 ggplot(tl2022, aes(x=factor(month(date)), y = temp_c)) + 
   stat_boxplot(geom ='errorbar', width = 0.2) + 
   geom_boxplot() +
   xlab("Month") + 
   ylab("Water Temp") +
-  ggtitle("2022 Data")
+  ggtitle("2022 Data") +
+  geom_hline(yintercept = 33, col = "red") + 
+    annotate("text", x = 9, y = 34, label = "33 degrees", col = "red") +
+  geom_hline(yintercept = 31.929, col = "blue") +
+    annotate("text", x = 10, y = 32.5, label = "statistical outlier", col = "blue")
 
 
+tl2022 %>% filter(month(date) == 8) %>%
+  summarize(max_temp_below_40 = max(temp_c))
+
+tl2022 %>% filter(temp_c < 15) %>% group_by(date, depth_m, site) %>% summarize(mean_d = mean(temp_c))
 
 #### Simplifying Dates and Times
 tl2020$date <- as.Date(tl2020$date)
@@ -128,7 +207,6 @@ tl2020 %>%
   group_by(depth_m) %>%
   ggplot(aes(date, temp_c, color = factor(depth_m))) +
   geom_line()
-
 
 
 
