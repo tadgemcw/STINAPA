@@ -178,19 +178,15 @@ tl2022 %>% filter(temp_c < 15) %>% group_by(date, depth_m, site) %>%
 tl2022_33 <- tl2022 %>% filter(temp_c <= 33)
 
 #### Simplifying Dates and Times
-tl2020$date <- as.Date(tl2020$date)
-tl2020$time <- format(as.POSIXct(
-  tl2020$time),format = "%H:%M:%S")
+tl2020_33$date <- as.Date(tl2020_33$date)
+tl2020_33$time <- format(as.POSIXct(
+  tl2020_33$time),format = "%H:%M:%S")
 
 
 
-
-### Reviewing Temp Outliers
-tl2020 %>% filter(temp_c < 20)
-tl2020 %>% filter(temp_c > 35)
 
 #### monthly temp avgs.  Need to deal with outliers.
-tl2020 %>%
+tl2020_33 %>%
   mutate(month = month(date)) %>% 
   group_by(month) %>%
   summarize(mean = mean(temp_c))
@@ -202,15 +198,12 @@ ggplot(tl2020, aes(light)) + geom_boxplot()
 
 
 #### Time Series for Temp
-ggplot(tl2020, aes(date, temp_c, color = site)) +
-  geom_line()
-
-tl2020 %>% 
+tl2020_33 %>% 
   filter(date >= "2020-07-15" & date <= "2020-07-31") %>%
   ggplot(aes(date, temp_c, color = site)) +
       geom_line()
 
-tl2020 %>% 
+tl2020_33 %>% 
   filter(date >= "2020-07-15" & date <= "2020-07-31", site == "HarbourVillage") %>%
   group_by(depth_m) %>%
   ggplot(aes(date, temp_c, color = factor(depth_m))) +
@@ -219,13 +212,13 @@ tl2020 %>%
 
 
 ### Looking at Time Series for Light
-tl2020 %>% 
+tl2020_33 %>% 
   filter(date >= "2020-07-15" & date <= "2020-07-31", site == "HarbourVillage") %>%
   group_by(depth_m) %>%
   ggplot(aes(date, light, color = factor(depth_m))) +
   geom_line()
 
-kdata <- tl2020 %>% 
+kdata <- tl2020_33 %>% 
   filter(date >= "2020-08-15" & date <= "2020-11-30",
          time >= "10:00:00" & time <= "15:00:00",
          site == "HarbourVillage", 
