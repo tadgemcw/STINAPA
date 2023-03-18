@@ -30,7 +30,7 @@ tl2022 %>% group_by(depth_m) %>%
   labs(fill = "Depth (m)") +
   ggtitle("2022 Data Collected")
 
-### Reviewing 2020 Temp Data for Outliers
+########### Reviewing 2020 Temp Data for Outliers
 summary(tl2020$temp_c)
 
 ggplot(tl2020, aes(temp_c)) + 
@@ -73,6 +73,8 @@ ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) +
       annotate("text", x = 9, y = 36, label = "33 degrees", col = "red") +
     geom_hline(yintercept = 31.623, col = "blue") +
       annotate("text", x = 5, y = 34, label = "statistical outlier", col = "blue")
+
+tl2020_33 <- tl2020 %>% filter(temp_c <= 33)
   
 #################### Reviewing 2021 Temp Data for Outliers
 summary(tl2021$temp_c)
@@ -117,6 +119,9 @@ ggplot(tl2021, aes(x=factor(month(date)), y = temp_c)) +
 
 tl2021 %>% filter(month(date) == 9 & temp_c < 40) %>%
   summarize(max_temp_below_40 = max(temp_c))
+
+tl2021_33 <- tl2021 %>% filter(temp_c <= 33)
+
 ############## Reviewing 2022 Temp Data for Outliers
 summary(tl2022$temp_c)
 
@@ -150,7 +155,7 @@ ggplot(tl2022, aes(x = temp_c)) +
 
 ggplot(tl2022_outliers, aes(temp_c)) + 
   geom_bar() +
-  ggtitle("2022 Distribution of Statistical Outliers")
+  ggtitle("2022 Distribution of Statistical Outliers") 
 
 ggplot(tl2022, aes(x=factor(month(date)), y = temp_c)) + 
   stat_boxplot(geom ='errorbar', width = 0.2) + 
@@ -167,7 +172,10 @@ ggplot(tl2022, aes(x=factor(month(date)), y = temp_c)) +
 tl2022 %>% filter(month(date) == 8) %>%
   summarize(max_temp_below_40 = max(temp_c))
 
-tl2022 %>% filter(temp_c < 15) %>% group_by(date, depth_m, site) %>% summarize(mean_d = mean(temp_c))
+tl2022 %>% filter(temp_c < 15) %>% group_by(date, depth_m, site) %>% 
+  summarize(mean_d = mean(temp_c))
+
+tl2022_33 <- tl2022 %>% filter(temp_c <= 33)
 
 #### Simplifying Dates and Times
 tl2020$date <- as.Date(tl2020$date)
