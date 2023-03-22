@@ -115,7 +115,7 @@ ggplot(tl2021, aes(x=factor(month(date)), y = temp_c)) +
   geom_hline(yintercept = 33, col = "red") + 
   annotate("text", x = 2, y = 36, label = "33 degrees", col = "red") +
   geom_hline(yintercept = 31.623, col = "blue") +
-  annotate("text", x = 3, y = 34, label = "statistical outlier", col = "blue")
+  annotate("text", x = 4, y = 34, label = "statistical outlier", col = "blue")
 
 tl2021 %>% filter(month(date) == 9 & temp_c < 40) %>%
   summarize(max_temp_below_40 = max(temp_c))
@@ -219,24 +219,21 @@ avg_temps %>%
     scale_y_continuous(limits = c(23, 31), breaks = seq(23, 31, 1), "Water Temperature (c)") + 
     ggtitle("Average Water Temperature") 
 
-
-
-### Reviewing Light Data
-summary(tl2020$light)
-ggplot(tl2020, aes(light)) + geom_boxplot()
-
-
-#### Time Series for Temp
+############## detailed temp changes. See NOAA site for bleaching events ###########
 tl2020_33 %>% 
-  filter(date >= "2020-07-15" & date <= "2020-07-31") %>%
+  filter(date >= "2020-09-01" & date <= "2020-09-31") %>%
   ggplot(aes(date, temp_c, color = site)) +
-      geom_line()
+  geom_line()
 
 tl2020_33 %>% 
-  filter(date >= "2020-07-15" & date <= "2020-07-31", site == "HarbourVillage") %>%
+  filter(date >= "2020-09-01" & date <= "2020-09-31", site == "HarbourVillage") %>%
   group_by(depth_m) %>%
   ggplot(aes(date, temp_c, color = factor(depth_m))) +
   geom_line()
+
+### Reviewing Light Data
+summary(tl2020_33$light)
+ggplot(tl2020_33, aes(light)) + geom_boxplot()
 
 
 
