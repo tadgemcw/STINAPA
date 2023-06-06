@@ -120,3 +120,46 @@ tl2021_33$date <- as.Date(tl2021_33$date)
 tl2022_33$date <- as.Date(tl2022_33$date)
 ```
 
+
+```{r average water temp by month, echo=FALSE}
+#2020
+avg_temp20 <- tl2020_33 %>%
+  mutate(month = month(date)) %>% 
+  group_by(month) %>%
+  summarize(avg_temp20 = mean(temp_c))
+#2021 
+avg_temp21 <- tl2021_33 %>%
+  mutate(month = month(date)) %>% 
+  group_by(month) %>%
+  summarize(avg_temp21 = mean(temp_c))
+#2022
+avg_temp22 <- tl2022_33 %>%
+  mutate(month = month(date)) %>% 
+  group_by(month) %>%
+  summarize(avg_temp22 = mean(temp_c))
+#Joining years
+avg_temps <- avg_temp20 %>% 
+  full_join(avg_temp21, by = "month") %>%
+  full_join(avg_temp22, by = "month") %>%
+  arrange(month)
+
+avg_temps %>% 
+  pivot_longer(cols = avg_temp20:avg_temp22, names_to = "year", values_to = "temp") %>% 
+  ggplot(aes(month,  temp, color = year)) +
+    geom_line() +
+    scale_color_manual(name = "Year", 
+                       labels = c("2020", "2021", "2022"),
+                       values = c("deepskyblue1","darkviolet","darkblue"),
+                       guide = guide_legend(reverse = TRUE)) +
+    scale_x_continuous(breaks = 1:12, "Month") + 
+    scale_y_continuous(limits = c(23, 31), breaks = seq(23, 31, 1), "Water Temperature (c)") + 
+    ggtitle("Average Water Temperature") 
+
+avg_temps %>% rename("Month" = month,
+                     "2020" = avg_temp20,
+                     "2021" = avg_temp21,
+                     "2022" = avg_temp22) %>%
+  nice_table(title = "Average Water Temperatures") %>%
+  colformat_double(j = c(1), digits = 0, na_str="N/A")
+```
+
