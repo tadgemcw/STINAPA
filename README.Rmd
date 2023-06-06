@@ -107,17 +107,23 @@ ggplot(tl2022, aes(x=factor(month(date)), y = temp_c)) +
 
 ```{r removing outliers above 33 degrees, echo=FALSE}
 tl2020_33 <- tl2020 %>% filter(temp_c <= 33)
-tl2021_33 <- tl2020 %>% filter(temp_c <= 33)
-tl2022_33 <- tl2020 %>% filter(temp_c <= 33)
+tl2021_33 <- tl2021 %>% filter(temp_c <= 33)
+tl2022_33 <- tl2022 %>% filter(temp_c <= 33)
 ```
 
 
 ## Data Analysis
 
-```{r formatting date columns, echo=FALSE}
+```{r formatting date and time columns, echo=FALSE}
 tl2020_33$date <- as.Date(tl2020_33$date)
+tl2020_33$time <- strftime(tl2020_33$time, format="%H:%M:%S")
+
 tl2021_33$date <- as.Date(tl2021_33$date)
+tl2021_33$time <- strftime(tl2021_33$time, format="%H:%M:%S")
+
 tl2022_33$date <- as.Date(tl2022_33$date)
+tl2022_33$time <- strftime(tl2022_33$time, format="%H:%M:%S")
+
 ```
 
 
@@ -159,7 +165,8 @@ avg_temps %>% rename("Month" = month,
                      "2020" = avg_temp20,
                      "2021" = avg_temp21,
                      "2022" = avg_temp22) %>%
-  nice_table(title = "Average Water Temperatures") %>%
-  colformat_double(j = c(1), digits = 0, na_str="N/A")
+  nice_table(title = "Average Water Temperature (c)") %>%
+  colformat_double(j = c(1), digits = 0, na_str = "N/A")
+
 ```
 
