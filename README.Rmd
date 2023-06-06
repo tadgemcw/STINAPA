@@ -1,0 +1,122 @@
+---
+title: "Analysis of Water Temperatures"
+subtitle: "A Collaboration with STINAPA"
+author: "Tadge McWilliams"
+date: "May 19th, 2023"
+output: 
+  html_document:
+    toc: TRUE
+    toc_float:
+      collapsed: FALSE
+---
+
+```{r loading packages, include=FALSE, echo=FALSE}
+library(readxl)
+library(tidyverse)
+library(lubridate)
+library(pander)
+library(flextable)
+library(rempsyc)
+```
+
+```{r loading data, echo=FALSE}
+setwd("~/Documents/Data Science/STINAPA/Temp & Light Project")
+tl2020 <- read_excel("2020 raw.xlsx", sheet = 1)
+tl2021 <- read_excel("2021 raw.xlsx", sheet = 1)
+tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
+```
+
+
+## Summary
+...summary of data, analysis, methods, and findings.
+
+## Methodology
+...how was data handeled. what formuli were used.  what past work was used
+
+## Data Collected
+...highlevel overview of the data collected.  Quantity, sites, depths, locations.
+
+## Outliers
+...identification of outliers, and how they were handled.  Outliers on the low end are included.  Low temperature upwellings are important.  Outliers on the high end were considered.  Some readings are impossible water temperatures.  These were likely caused when the meter was active on the deck of the boat.  33 degree was used in place of statistical outlier calculation to ensure legitimate outliers of the data were not excluded.
+
+
+```{r 2020 outliers, echo=FALSE}
+ggplot(tl2020, aes(temp_c)) +
+  geom_bar() + 
+  facet_wrap(~depth_m) +
+  ggtitle("2020 Distribution by Depth")
+
+quant2020 <- quantile(tl2020$temp_c, probs = c(0.25, 0.75))
+statoutlier2020 <- (IQR(tl2020$temp_c) * 1.5) + quant2020[2]
+
+ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) + 
+    stat_boxplot(geom ='errorbar', width = 0.2) + 
+    geom_boxplot() +
+    xlab("Month") + 
+    ylab("Water Temp") +
+    ggtitle("2020 Data") +
+    geom_hline(yintercept = 33, col = "red") + 
+      annotate("text", x = 8, y = 20, hjust = "left", label = "- 33 Degrees", col = "red") +
+    geom_hline(yintercept = statoutlier2020, col = "blue") +
+      annotate("text", x = 8, y = 17, hjust = "left", label = "- Statistical Outlier", col = "blue")
+```
+
+
+```{r 2021 outliers, echo=FALSE}
+ggplot(tl2021, aes(temp_c)) +
+  geom_bar() + 
+  facet_wrap(~depth_m) +
+  ggtitle("2021 Distribution by Depth")
+
+quant2021 <- quantile(tl2021$temp_c, probs = c(0.25, 0.75))
+statoutlier2021 <- (IQR(tl2021$temp_c) * 1.5) + quant2021[2]
+
+ggplot(tl2021, aes(x=factor(month(date)), y = temp_c)) + 
+    stat_boxplot(geom ='errorbar', width = 0.2) + 
+    geom_boxplot() +
+    xlab("Month") + 
+    ylab("Water Temp") +
+    ggtitle("2021 Data") +
+    geom_hline(yintercept = 33, col = "red") + 
+      annotate("text", x = 8, y = 20, hjust = "left", label = "- 33 Degrees", col = "red") +
+    geom_hline(yintercept = statoutlier2021, col = "blue") +
+      annotate("text", x = 8, y = 17, hjust = "left", label = "- Statistical Outlier", col = "blue")
+```
+
+
+```{r 2022 outliers, echo=FALSE}
+ggplot(tl2022, aes(temp_c)) +
+  geom_bar() + 
+  facet_wrap(~depth_m) +
+  ggtitle("2022 Distribution by Depth")
+
+quant2022 <- quantile(tl2022$temp_c, probs = c(0.25, 0.75))
+statoutlier2022 <- (IQR(tl2022$temp_c) * 1.5) + quant2022[2]
+
+ggplot(tl2022, aes(x=factor(month(date)), y = temp_c)) + 
+    stat_boxplot(geom ='errorbar', width = 0.2) + 
+    geom_boxplot() +
+    xlab("Month") + 
+    ylab("Water Temp") +
+    ggtitle("2022 Data") +
+    geom_hline(yintercept = 33, col = "red") + 
+      annotate("text", x = 8, y = 20, hjust = "left", label = "- 33 Degrees", col = "red") +
+    geom_hline(yintercept = statoutlier2022, col = "blue") +
+      annotate("text", x = 8, y = 17, hjust = "left", label = "- Statistical Outlier", col = "blue")
+```
+
+```{r removing outliers above 33 degrees, echo=FALSE}
+tl2020_33 <- tl2020 %>% filter(temp_c <= 33)
+tl2021_33 <- tl2020 %>% filter(temp_c <= 33)
+tl2022_33 <- tl2020 %>% filter(temp_c <= 33)
+```
+
+
+## Data Analysis
+
+```{r formatting date columns, echo=FALSE}
+tl2020_33$date <- as.Date(tl2020_33$date)
+tl2021_33$date <- as.Date(tl2021_33$date)
+tl2022_33$date <- as.Date(tl2022_33$date)
+```
+
