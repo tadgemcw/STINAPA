@@ -30,15 +30,21 @@ tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
 ## Summary
 ...summary of data, analysis, methods, and findings.
 
+## Data Collected
+...highlevel overview of the data collected.  Quantity, sites, depths, locations, missing data.
+
 ## Methodology
 ...how was data handeled. what formuli were used.  what past work was used
 
-## Data Collected
-...highlevel overview of the data collected.  Quantity, sites, depths, locations.
-
 ## Outliers
-...identification of outliers, and how they were handled.  Outliers on the low end are included.  Low temperature upwellings are important.  Outliers on the high end were considered.  Some readings are impossible water temperatures.  These were likely caused when the meter was active on the deck of the boat.  33 degree was used in place of statistical outlier calculation to ensure legitimate outliers of the data were not excluded.
 
+Outliers play an important part in this data set.  Statistically, outliers are observations that fall beyond the upper and lower quartiles by at least 1.5 times the interquartile range. While outliers can represent collection errors, they can also represent real environmental anomalies that lead to new discoveries or help to explain a greater trend in the data.  For these reasons, I have used a conservative approach in handling outliers.
+
+For this data set, I chose to include all observations below the first quartile.  My reasoning is as follows: First, it is reasonable to assume that abnormally low temperature readings are legitimate.  Given Bonaire's hot climate, unnatural readings are difficult to produce unless the sensor malfunctions or the sensor is placed in an artificially cooled environment.  Second, upwellings of colder water have been recorded in the past, and these upwellings can have a significant effect on the environment.  Thus, their presence is an important feature for study.
+
+Outliers above the third quartile were carefully considered.  In reviewing the data, it is clear that some temperature readings are impossible ocean temperatures.  There is also a plausible scenario in which the data sensors continued to record temperatures when they were brought above water, likely laying on a boat in direct sun during cleaning and data retrieval.  I concluded that the impossible values should be removed from the dataset so as to yield a more accurate analysis, but choosing a threshold for unnatural observations was challenging.  Initially, I calculated the the threshold using that standard statistical outlier method (Q3 + 1.5 x IQR) for each year; however, a significant number of observations fall along that temperature.  After consulting Erik Meesters, Tropical Marine Ecologist and Bio Statistician at Wageningen Marine Research, I agreed with his suggestion that any observations above 33 degrees celsius were not recorded in the water[^1].  The visualizations below help to confirm that while a 33 degree threshold is somewhat arbitrary, this higher threshold includes potentially natural outliers while excluding the majority of observations that are truly impossible.  This method could be deemed overly conservative or simplistic, but as Erik aptly suggested, it would be prudent not to omit any observations unless you are 100% sure  the reading is wrong.
+
+[^1]: E. Meesters, personal communication, March 16th, 2023.
 
 ```{r 2020 outliers, echo=FALSE}
 ggplot(tl2020, aes(temp_c)) +
@@ -53,7 +59,7 @@ ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) +
     stat_boxplot(geom ='errorbar', width = 0.2) + 
     geom_boxplot() +
     xlab("Month") + 
-    ylab("Water Temp") +
+    ylab("Water Temperature (c)") +
     ggtitle("2020 Data") +
     geom_hline(yintercept = 33, col = "red") + 
       annotate("text", x = 8, y = 20, hjust = "left", label = "- 33 Degrees", col = "red") +
@@ -75,7 +81,7 @@ ggplot(tl2021, aes(x=factor(month(date)), y = temp_c)) +
     stat_boxplot(geom ='errorbar', width = 0.2) + 
     geom_boxplot() +
     xlab("Month") + 
-    ylab("Water Temp") +
+    ylab("Water Temperature (c)") +
     ggtitle("2021 Data") +
     geom_hline(yintercept = 33, col = "red") + 
       annotate("text", x = 8, y = 20, hjust = "left", label = "- 33 Degrees", col = "red") +
@@ -97,12 +103,12 @@ ggplot(tl2022, aes(x=factor(month(date)), y = temp_c)) +
     stat_boxplot(geom ='errorbar', width = 0.2) + 
     geom_boxplot() +
     xlab("Month") + 
-    ylab("Water Temp") +
+    ylab("Water Temperature (c)") +
     ggtitle("2022 Data") +
     geom_hline(yintercept = 33, col = "red") + 
       annotate("text", x = 8, y = 20, hjust = "left", label = "- 33 Degrees", col = "red") +
     geom_hline(yintercept = statoutlier2022, col = "blue") +
-      annotate("text", x = 8, y = 17, hjust = "left", label = "- Statistical Outlier", col = "blue")
+      annotate("text", x = 8, y = 18, hjust = "left", label = "- Statistical Outlier", col = "blue")
 ```
 
 ```{r removing outliers above 33 degrees, echo=FALSE}
@@ -123,9 +129,8 @@ tl2021_33$time <- strftime(tl2021_33$time, format="%H:%M:%S")
 
 tl2022_33$date <- as.Date(tl2022_33$date)
 tl2022_33$time <- strftime(tl2022_33$time, format="%H:%M:%S")
-
 ```
-
+The average water temperature in 2022 was generally higher than in 2020 or 2021.  The water temperature in January 2022 appears to be quite low; however, it is likely this average is being skewed by isolated low temperature outliers. 
 
 ```{r average water temp by month, echo=FALSE}
 #2020
@@ -169,4 +174,5 @@ avg_temps %>% rename("Month" = month,
   colformat_double(j = c(1), digits = 0, na_str = "N/A")
 
 ```
+
 
