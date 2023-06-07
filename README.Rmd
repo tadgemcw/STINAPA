@@ -26,6 +26,7 @@ tl2021 <- read_excel("2021 raw.xlsx", sheet = 1)
 tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
 ```
 
+![](/Users/tadgemcwilliams/Documents/Data Science/STINAPA/STINAPA/SeaAir.jpg)
 
 ## Summary
 ...summary of data, analysis, methods, and findings.
@@ -48,9 +49,11 @@ Outliers above the third quartile were carefully considered.  In reviewing the d
 
 ```{r 2020 outliers, echo=FALSE}
 ggplot(tl2020, aes(temp_c)) +
-  geom_bar() + 
+  geom_bar(width = 0.1) + 
   facet_wrap(~depth_m) +
-  ggtitle("2020 Distribution by Depth")
+  xlab("Temperature (c)") +
+  ylab("Data Points") +
+  ggtitle("2020 Distribution by Sensor Depth (m)")
 
 quant2020 <- quantile(tl2020$temp_c, probs = c(0.25, 0.75))
 statoutlier2020 <- (IQR(tl2020$temp_c) * 1.5) + quant2020[2]
@@ -61,18 +64,19 @@ ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) +
     xlab("Month") + 
     ylab("Water Temperature (c)") +
     ggtitle("2020 Data") +
-    geom_hline(yintercept = 33, col = "red") + 
-      annotate("text", x = 8, y = 20, hjust = "left", label = "- 33 Degrees", col = "red") +
-    geom_hline(yintercept = statoutlier2020, col = "blue") +
-      annotate("text", x = 8, y = 17, hjust = "left", label = "- Statistical Outlier", col = "blue")
+    geom_hline(aes(yintercept = 33, col = "33 Degrees")) + 
+    geom_hline(aes(yintercept = statoutlier2020, col = "Statistical Outlier")) +
+    theme(legend.title=element_blank())
 ```
 
 
 ```{r 2021 outliers, echo=FALSE}
 ggplot(tl2021, aes(temp_c)) +
-  geom_bar() + 
+  geom_bar(width = 0.1) + 
   facet_wrap(~depth_m) +
-  ggtitle("2021 Distribution by Depth")
+  xlab("Temperature (c)") +
+  ylab("Data Points") +
+  ggtitle("2021 Distribution by Sensor Depth (m)")
 
 quant2021 <- quantile(tl2021$temp_c, probs = c(0.25, 0.75))
 statoutlier2021 <- (IQR(tl2021$temp_c) * 1.5) + quant2021[2]
@@ -83,18 +87,19 @@ ggplot(tl2021, aes(x=factor(month(date)), y = temp_c)) +
     xlab("Month") + 
     ylab("Water Temperature (c)") +
     ggtitle("2021 Data") +
-    geom_hline(yintercept = 33, col = "red") + 
-      annotate("text", x = 8, y = 20, hjust = "left", label = "- 33 Degrees", col = "red") +
-    geom_hline(yintercept = statoutlier2021, col = "blue") +
-      annotate("text", x = 8, y = 17, hjust = "left", label = "- Statistical Outlier", col = "blue")
+    geom_hline(aes(yintercept = 33, col = "33 Degrees")) + 
+    geom_hline(aes(yintercept = statoutlier2021, col = "Statistical Outlier")) +
+    theme(legend.title=element_blank())
 ```
 
 
 ```{r 2022 outliers, echo=FALSE}
 ggplot(tl2022, aes(temp_c)) +
-  geom_bar() + 
+  geom_bar(width = 0.1) + 
   facet_wrap(~depth_m) +
-  ggtitle("2022 Distribution by Depth")
+  xlab("Temperature (c)") +
+  ylab("Data Points") +
+  ggtitle("2022 Distribution by Sensor Depth (m)")
 
 quant2022 <- quantile(tl2022$temp_c, probs = c(0.25, 0.75))
 statoutlier2022 <- (IQR(tl2022$temp_c) * 1.5) + quant2022[2]
@@ -105,10 +110,9 @@ ggplot(tl2022, aes(x=factor(month(date)), y = temp_c)) +
     xlab("Month") + 
     ylab("Water Temperature (c)") +
     ggtitle("2022 Data") +
-    geom_hline(yintercept = 33, col = "red") + 
-      annotate("text", x = 8, y = 20, hjust = "left", label = "- 33 Degrees", col = "red") +
-    geom_hline(yintercept = statoutlier2022, col = "blue") +
-      annotate("text", x = 8, y = 18, hjust = "left", label = "- Statistical Outlier", col = "blue")
+    geom_hline(aes(yintercept = 33, col = "33 Degrees")) + 
+    geom_hline(aes(yintercept = statoutlier2022, col = "Statistical Outlier")) +
+    theme(legend.title=element_blank())
 ```
 
 ```{r removing outliers above 33 degrees, echo=FALSE}

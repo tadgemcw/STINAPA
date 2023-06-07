@@ -46,6 +46,7 @@ ggplot(tl2020, aes(temp_c)) +
   ggtitle("2020 Distribution")
 
 quant2020 <- quantile(tl2020$temp_c, probs = c(0.25, 0.75))
+statoutlier2020 <- (IQR(tl2020$temp_c) * 1.5) + quant2020[2]
 
 tl2020_capped <- tl2020 %>% filter(temp_c <= (quant2020[2] + (1.5 * IQR(temp_c))))
 tl2020_outliers <- tl2020 %>% filter(temp_c > (quant2020[2] + (1.5 * IQR(temp_c)))) 
@@ -70,9 +71,11 @@ ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) +
     ylab("Water Temp") +
     ggtitle("2020 Data") +
     geom_hline(yintercept = 33, col = "red") + 
-      annotate("text", x = 9, y = 36, label = "33 degrees", col = "red") +
-    geom_hline(yintercept = 31.623, col = "blue") +
-      annotate("text", x = 5, y = 34, label = "statistical outlier", col = "blue")
+      annotate("text", x = 8, y = 20, hjust = "left", label = "- 33 Degrees", col = "red") +
+    geom_hline(yintercept = statoutlier2020, col = "blue") +
+      annotate("text", x = 8, y = 17, hjust = "left", label = "- Statistical Outlier", col = "blue")
+
+31.623
 
 tl2020_33 <- tl2020 %>% filter(temp_c <= 33)
   
@@ -179,8 +182,7 @@ tl2022_33 <- tl2022 %>% filter(temp_c <= 33)
 
 ############ Simplifying Dates and Times ################
 tl2020_33$date <- as.Date(tl2020_33$date)
-tl2020_33$time <- format(as.POSIXct(
-  tl2020_33$time),format = "%H:%M:%S")
+tl2020_33$time <- strptime(tl2020_33, "%H:%M:%S")
 
 
 
@@ -205,7 +207,6 @@ avg_temps <- avg_temp20 %>%
   full_join(avg_temp21, by = "month") %>%
   full_join(avg_temp22, by = "month") %>%
   arrange(month)
-avg_temps
 
 avg_temps %>% 
   pivot_longer(cols = avg_temp20:avg_temp22, names_to = "year", values_to = "temp") %>% 
@@ -218,6 +219,8 @@ avg_temps %>%
     scale_x_continuous(breaks = 1:12, "Month") + 
     scale_y_continuous(limits = c(23, 31), breaks = seq(23, 31, 1), "Water Temperature (c)") + 
     ggtitle("Average Water Temperature") 
+
+
 
 ############## detailed temp changes. See NOAA site for bleaching events ###########
 tl2020_33 %>% 
