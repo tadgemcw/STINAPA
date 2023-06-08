@@ -209,31 +209,53 @@ avg_temps %>% rename("Month" = month,
 
 
 Below are tables of the lowest temperatures for each year.  From the *Temperature Variations* plots above, it is apparent that 2020 and 2022 had isolated low temperature events while the recorded temperatures in October 2021 were more graduated.
-I find it interesting that the isolated low temperature events in 2022 were all recorded at six meters.  No significant low temperatures were recorded at lower depths.  
+It is interesting that the isolated low temperature events in 2022 were all recorded at six meters.  No significant low temperatures were recorded at lower depths.  
 
 ```{r review of low outliers, echo=FALSE}
 
 # 2020 low temp outliers
-temp20mm %>% filter(temp_c < 22) %>% arrange(date)  %>%
+temp20mm %>% filter(temp_c < 23) %>% arrange(date)  %>%
   rename("Date" = date, "Site" = site, "Depth (m)" = depth_m, "Temp (c)" = temp_c) %>%
-  nice_table(title = "2020 Temperatures Below 22 Degrees")
+  nice_table(title = "2020 Temperatures Below 23 Degrees")
 
 #2021 low temp outliers
-temp21mm %>% filter(temp_c < 22) %>% arrange(date)  %>%
+temp21mm %>% filter(temp_c < 23) %>% arrange(date)  %>%
   rename("Date" = date, "Site" = site, "Depth (m)" = depth_m, "Temp (c)" = temp_c) %>%
-  nice_table(title = "2021 Temperatures Below 22 Degrees")
+  nice_table(title = "2021 Temperatures Below 23 Degrees",
+             note = "Multiple values during a single day represent the daily high and low temperatures recordings.")
 
 #2022 low temp outliers
-temp22mm %>% filter(temp_c < 22) %>% arrange(date)  %>%
+temp22mm %>% filter(temp_c < 23) %>% arrange(date)  %>%
   rename("Date" = date, "Site" = site, "Depth (m)" = depth_m, "Temp (c)" = temp_c) %>%
-  nice_table(title = "2022 Temperatures Below 22 Degrees")
+  nice_table(title = "2022 Temperatures Below 23 Degrees")
 ```
 
 ### Degree Changes
 
-...talk about significance of 4 Degree Heating Week (DHW) degree changes in x number of hours/days as indicator of coral bleaching.
+...talk about significance of 4 and 8 Degree Heating Week (DHW) degree changes as indicator of coral bleaching.
 
 ```{r calculating degree change, echo=FALSE}
+# create a running avg of weekly highs from 2020-2022, then create a running avg of daily highs for 2022.  Then calc DHW from difference?
 
+#2020
+avgD_temp20 <- tl2020_33 %>%
+  group_by(date) %>%
+  summarize(avgD_temp20 = mean(temp_c))
+#2021 
+avgD_temp21 <- tl2021_33 %>%
+  group_by(date) %>%
+  summarize(avgD_temp21 = mean(temp_c))
+#2022
+avgD_temp22 <- tl2022_33 %>%
+  group_by(date) %>%
+  summarize(avgD_temp22 = mean(temp_c))
+#Joining years
+avg_daily_temps <- avgD_temp20 %>% 
+  full_join(avgD_temp21, by = "date") %>%
+  full_join(avgD_temp22, by = "date") %>%
+  arrange(date)
+
+# Need to remove the year from date column to overlap years.
+ggplot(avg_daily_temps, aes(date, avgD_temp20)) + geom_line()
 ```
 
