@@ -37,7 +37,7 @@ tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
 ## Methodology
 ...how was data handeled. what formuli were used.  what past work was used
 
-## Outliers
+### Outliers
 
 Outliers play an important part in this data set.  Statistically, outliers are observations that fall beyond the upper and lower quartiles by at least 1.5 times the interquartile range. While outliers can represent collection errors, they can also represent real environmental anomalies that lead to new discoveries or help to explain a greater trend in the data.  For these reasons, I have used a conservative approach in handling outliers.
 
@@ -229,4 +229,11 @@ temp22mm %>% filter(temp_c < 22) %>% arrange(date)  %>%
   nice_table(title = "2022 Temperatures Below 22 Degrees")
 ```
 
+### Degree Changes
+
+...talk about significance of 4 Degree Heating Week (DHW) degree changes in x number of hours/days as indicator of coral bleaching.
+
+```{r calculating degree change, echo=FALSE}
+
+```
 
