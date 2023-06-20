@@ -252,6 +252,7 @@ avgDaily_temp22 <- tl2022_33 %>%
   group_by(date) %>%
   summarize(avg_temp = mean(temp_c))
 #Joining years
+
 avg_daily_temps <- avgDaily_temp20 %>% 
   bind_rows(avgDaily_temp21) %>%
   bind_rows(avgDaily_temp22) %>%
@@ -259,21 +260,24 @@ avg_daily_temps <- avgDaily_temp20 %>%
 
 #Breaking out date parts and adding a 7-day rolling average.
 avg_daily_temps <- avg_daily_temps %>% 
-  mutate(year = year(date),
-         month = month(date),
-         week = week(date),
-         day = day(date),
-         rolling_wk_avg = rollmean(avg_temp, k = 7, fill = NA, align = "right"))
+  mutate(rolling_wk_avg = rollmean(avg_temp, k = 7, fill = NA, align = "right"))
 
-
-highs_2022 <- avg_daily_temps %>%
+#Separating 2022 data from earlier years.
+avg_daily_temps_2022 <- avg_daily_temps %>%
     group_by(date) %>%
-    filter(year == "2022")
+    filter(year(date) == "2022")
 
-avg_daily_temps %>% filter(year != "2022") %>%
-  ggplot(aes(week, rolling_wk_avg)) + 
-  geom_smooth() +
-  geom_line(data = highs_2022, aes(x = week, y = avg_temp))
+#Ploting 2020-2021 avg against 2022 avg.
+avg_daily_temps %>% filter(year(date) != "2022") %>%
+  ggplot(aes(x = week(date), y = avg_temp)) + 
+  geom_smooth(aes(color = "Hist. Avg.")) +
+  geom_line(data = avg_daily_temps_2022, aes(y = avg_temp, color = factor(year(date)))) +
+  scale_x_continuous(breaks = seq(2, 52, 2)) +
+  scale_color_manual(values = c("firebrick2", "blue3"), name = "Year") +
+  xlab("Weeks") +
+  ylab("Water Temperature (c)") +
+  ggtitle("Comparing 2022 with 2020-2021 Average") +
+  theme_bw()
 
 ```
 
