@@ -15,8 +15,6 @@ library(readxl)
 library(tidyverse)
 library(lubridate)
 library(flextable)
-library(zoo)
-library(caret)
 library(rempsyc)
 ```
 
@@ -43,9 +41,11 @@ tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
 
 Outliers play an important part in this data set.  Statistically, outliers are observations that fall beyond the upper and lower quartiles by at least 1.5 times the interquartile range. While outliers can represent collection errors, they can also represent real environmental anomalies that lead to new discoveries or help to explain a greater trend in the data.  For these reasons, I have used a conservative approach in handling outliers.
 
-For this data set, I chose to include all observations below the first quartile.  My reasoning is as follows: First, it is reasonable to assume that abnormally low temperature readings are legitimate.  Given Bonaire's hot climate, unnatural readings are difficult to produce unless the sensor malfunctions or the sensor is placed in an artificially cooled environment.  Second, upwellings of colder water have been recorded in the past, and these upwellings can have a significant effect on the environment.  Thus, their presence is an important feature for study.
+For this data set I chose to include all observations below the first quartile.  My reasoning is as follows: First, it is reasonable to assume that abnormally low temperature readings are legitimate.  Given Bonaire's hot climate, unnatural readings are difficult to produce unless the sensor malfunctions or the sensor is placed in an artificially cooled environment.  Second, upwellings of colder water have been recorded in the past, and these upwellings can have a significant effect on the environment.  Thus, their presence is an important feature for study.
 
-Outliers above the third quartile were carefully considered.  In reviewing the data, it is clear that some temperature readings are impossible ocean temperatures.  There is also a plausible scenario in which the data sensors continued to record temperatures when they were brought above water, likely laying on a boat in direct sun during cleaning and data retrieval.  I concluded that the impossible values should be removed from the dataset so as to yield a more accurate analysis, but choosing a threshold for unnatural observations was challenging.  Initially, I calculated the the threshold using that standard statistical outlier method (Q3 + 1.5 x IQR) for each year; however, a significant number of observations fall along that temperature.  After consulting Erik Meesters, Tropical Marine Ecologist and Bio Statistician at Wageningen Marine Research, I agreed with his suggestion that any observations above 33 degrees celsius were not recorded in the water[^1].  The visualizations below help to confirm that while a 33 degree threshold is somewhat arbitrary, this higher threshold includes potentially natural outliers while excluding the majority of observations that are truly impossible.  This method could be deemed overly conservative or simplistic, but as Erik aptly suggested, it would be prudent not to omit any observations unless you are 100% sure  the reading is wrong.
+Outliers above the third quartile were carefully considered.  In reviewing the data, it is clear that some temperature readings are impossible ocean temperatures.  There is also a plausible scenario in which the data sensors continued to record temperatures when they were brought above water.  They were likely laying on a boat in direct sun during weekly cleaning and data retrieval.  I concluded that the impossible values should be removed from the dataset so as to yield a more accurate analysis, but choosing a threshold for unnatural observations was challenging.  Initially, I calculated the the threshold using a standard statistical outlier method (Q3 + 1.5 x IQR) for each year; however, a significant number of observations fall along that temperature.  Additionally, the data appears to have a multi-modal distribution.  This is likely due to seasonal weather patterns.  Setting a outlier threshold of 1.5 x IQR is typically only an acceptable practice with normally distributed data.
+
+After consulting Erik Meesters, Tropical Marine Ecologist and Bio Statistician at Wageningen Marine Research, I agreed with his suggestion that any observations above 33 degrees celsius were not recorded in the water[^1].  The visualizations below help to confirm that while a 33 degree threshold is somewhat arbitrary, this higher threshold includes potentially natural outliers while excluding the majority of observations that are impossible for the climate.  This method could be deemed overly conservative or simplistic, but as Erik aptly suggested, it would be prudent not to omit any observations unless you are 100% sure the reading is wrong.
 
 [^1]: E. Meesters, personal communication, March 16th, 2023.
 
@@ -67,7 +67,7 @@ ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) +
     ylab("Water Temperature (c)") +
     ggtitle("2020 Temperature Variations") +
     geom_hline(aes(yintercept = 33, col = "33 Degrees")) + 
-    geom_hline(aes(yintercept = statoutlier2020, col = "Statistical Outlier")) +
+    geom_hline(aes(yintercept = statoutlier2020, col = "1.5 x IQR")) +
     theme(legend.title=element_blank())
 ```
 
@@ -90,7 +90,7 @@ ggplot(tl2021, aes(x=factor(month(date)), y = temp_c)) +
     ylab("Water Temperature (c)") +
     ggtitle("2021 Temperature Variations") +
     geom_hline(aes(yintercept = 33, col = "33 Degrees")) + 
-    geom_hline(aes(yintercept = statoutlier2021, col = "Statistical Outlier")) +
+    geom_hline(aes(yintercept = statoutlier2021, col = "1.5 x IQR")) +
     theme(legend.title=element_blank())
 ```
 
@@ -113,7 +113,7 @@ ggplot(tl2022, aes(x=factor(month(date)), y = temp_c)) +
     ylab("Water Temperature (c)") +
     ggtitle("2022 Temperature Variations") +
     geom_hline(aes(yintercept = 33, col = "33 Degrees")) + 
-    geom_hline(aes(yintercept = statoutlier2022, col = "Statistical Outlier")) +
+    geom_hline(aes(yintercept = statoutlier2022, col = "1.5 x IQR")) +
     theme(legend.title=element_blank())
 ```
 
@@ -140,7 +140,8 @@ tl2022_33$time <- strftime(tl2022_33$time, format="%H:%M:%S")
   
 ## Data Analysis
 
-I aggregated the data by date, site, and depth, then filtered for the daily minimum, maximum, and average temperatures.
+I aggregated the data by date, then filtered for the daily minimum, maximum, and average temperatures.  
+Average temperatures during 2022 were lower in many months in in 2020 or 2021.  ...La Ni$\tilde{n}$a info to back this up???
 
 ```{r daily min/max and avg water temp by day, echo=FALSE}
 #2020
@@ -182,7 +183,7 @@ temp_mma <- temp20mm %>%
 
 ```{r visualizing general temperature trends, echo=FALSE}
 ggplot(temp_mma, aes(month,  avg_temp, color = factor(year))) +
-  geom_smooth(se=FALSE, span = 0.2) +
+  geom_smooth(se=FALSE, span = 0.05) +
   scale_color_manual(name = "Year", 
                        labels = c("2020", "2021", "2022"),
                        values = c("deepskyblue1","darkviolet","darkblue"),
@@ -209,10 +210,10 @@ ggplot(temp_mma, aes(factor(depth_m), avg_temp, color = site)) +
 ```
 
 
-Below is a summary of the data collected by location.  Of all the sites, STINAPA collected the most data from Klein Bonaire 1.  Of all the depths, the most data was collected at 12 meters.  Finally, the most data collected for a specific location (site and depth) was from Harbor Village and 20 meters.
+Below is a summary of the data collected by location.  Of all the sites, STINAPA collected the most data from Klein Bonaire 1.  Of all the depths, the most data was collected at 12 meters.  Finally, the most data collected for a specific location (site and depth) was from Klein Bonaire 1 at 20 meters.
 
 The histogram indicates that the data is multi-modal.  Also, no one site appears to be significantly skewed in temperature.  
-Given this information, I made the decision to use the data collected at 12 meters for my time series model.  By isolating my model to one depth, I hope to create a more accurate model than if I were to assume all the data collected followed the same trend, regardless of depth.
+
 
 ```{r reviewing data by site and depth, echo=FALSE}
 
@@ -238,23 +239,76 @@ It is interesting that the isolated low temperature events in 2022 were all reco
 ```{r review of low outliers, echo=FALSE}
 
 # 2020 low temp outliers
-temp20mm %>% filter(temp_c < 23) %>% arrange(date)  %>%
-  rename("Date" = date, "Site" = site, "Depth (m)" = depth_m, "Temp (c)" = temp_c) %>%
+temp20mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
+  rename("Date" = date, "Site" = site, "Depth (m)" = depth_m) %>%
   nice_table(title = "2020 Temperatures Below 23 Degrees")
 
 #2021 low temp outliers
-temp21mm %>% filter(temp_c < 23) %>% arrange(date)  %>%
-  rename("Date" = date, "Site" = site, "Depth (m)" = depth_m, "Temp (c)" = temp_c) %>%
-  nice_table(title = "2021 Temperatures Below 23 Degrees",
-             note = "Multiple values during a single day represent the daily high and low temperatures recordings.")
-
+temp21mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
+  rename("Date" = date, "Site" = site, "Depth (m)" = depth_m) %>%
+  nice_table(title = "2021 Temperatures Below 23 Degrees")
+            
 #2022 low temp outliers
-temp22mm %>% filter(temp_c < 23) %>% arrange(date)  %>%
-  rename("Date" = date, "Site" = site, "Depth (m)" = depth_m, "Temp (c)" = temp_c) %>%
+temp22mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
+  rename("Date" = date, "Site" = site, "Depth (m)" = depth_m) %>%
   nice_table(title = "2022 Temperatures Below 23 Degrees")
 ```
 
 ### Trend Modeling
 
+I made the decision to use the data collected from 12 meters from for my time series model.  By isolating my model to one location and one depth, I hope to create a more accurate model than if I were to assume all the data collected followed the same trend, regardless of depth.  Additionally, the Harbour Village data has few outliers in either direction over the three years of data collection.
+
+Using ....Autoregressive Integrated Moving Average (ARIMA)
+```{r time series model 1}
+# Below, filtering 12 meters from all sites, then averaging each day's data.
+
+avgTemp_12m <- temp_mma %>% 
+  filter(depth_m == 12) %>%
+  group_by(date) %>%
+  summarize(avg_temp = mean(avg_temp)) %>%
+  arrange(date)
+
+# QUESTION!!! Does the ts frame need to include every date or can it be missing dates?
+FullSeq <- seq.Date(from = min(avgTemp_12m$date), to = max(avgTemp_12m$date), by = 1)
+MissingDate <- FullSeq[!FullSeq %in% avgTemp_12m$date]
+MissingDate
+
+# Creating ts analysis
+timeseries <- ts(avgTemp_12m$avg_temp)
+plot(timeseries)
+
+# QUESTION!!! confirm 365 is correct.
+ts_diff <- diff(timeseries, lag = 365)
+ts.plot(ts_diff)
+
+# Below, arima estimates white noise of the ts data.  The model matches the mean and var.
+# ARIMA = autoregressive integrated moving average
+white_noise <- arima(timeseries, order = c(0,0,0))
+mean(timeseries)
+var(timeseries)
+
+# Below, we calculate the correlation at 1 lag to see if one observation is dependent on another.
+# Define x_t0 as x[-1]
+timeseries_t0 <- timeseries[-1]
+# Define x_t1 as x[-n]
+n <- length(timeseries)
+timeseries_t1 <- timeseries[-n]
+# Confirm that x_t0 and x_t1 are (x[t], x[t-1]) pairs  
+head(cbind(timeseries_t0, timeseries_t1))
+# Plot x_t0 and x_t1
+plot(timeseries_t0, timeseries_t1)
+# View the correlation between x_t0 and x_t1
+cor(timeseries_t0, timeseries_t1)
+# Confirm that difference factor is (n-1)/n
+cor(timeseries_t1, timeseries_t0) * (n-1)/n
+
+# Below, we use autocorrelation function (acf) with lag.max to calculate correlations at various lags.  High correlation over multiple lags shows high persistence.
+acf(timeseries, lag.max = 50, plot = FALSE)
+acf(timeseries, lag.max = 50)
+
+# Below, is a QQ plot.  
+qqnorm(timeseries, main = "QQ-plot")
+qqline(timeseries, col = "red")
+```
 
 
