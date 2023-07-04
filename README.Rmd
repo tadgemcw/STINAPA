@@ -12,10 +12,11 @@ output:
 
 ```{r loading packages, include=FALSE, echo=FALSE}
 library(readxl)
-library(tidyverse)
-library(lubridate)
-library(flextable)
-library(rempsyc)
+library(tidyverse) 
+library(lubridate) 
+library(flextable) #for nice table
+library(rempsyc) #for nice table
+library(astsa) #for time series modeling and plotting
 ```
 
 
@@ -148,27 +149,27 @@ Average temperatures during 2022 were lower in many months in in 2020 or 2021.  
 temp20mm <- tl2020_33 %>% 
   select(date, site, depth_m, temp_c) %>%
   group_by(site, depth_m, date) %>% 
-  summarise(max_temp = max(temp_c),
-            min_temp = min(temp_c),
-            avg_temp = mean(temp_c)) %>%
+  summarise(min_temp = min(temp_c),
+            avg_temp = mean(temp_c),
+            max_temp = max(temp_c)) %>%
   arrange(date, site, depth_m)
 
 #2021
 temp21mm <- tl2021_33 %>% 
   select(date, site, depth_m, temp_c) %>%
   group_by(site, depth_m, date) %>% 
-  summarise(max_temp = max(temp_c),
-            min_temp = min(temp_c),
-            avg_temp = mean(temp_c)) %>%
+  summarise(min_temp = min(temp_c),
+            avg_temp = mean(temp_c),
+            max_temp = max(temp_c)) %>%
   arrange(date, site, depth_m)
 
 #2022
 temp22mm <- tl2022_33 %>% 
   select(date, site, depth_m, temp_c) %>%
   group_by(site, depth_m, date) %>% 
-  summarise(max_temp = max(temp_c),
-            min_temp = min(temp_c),
-            avg_temp = mean(temp_c)) %>%
+  summarise(min_temp = min(temp_c),
+            avg_temp = mean(temp_c),
+            max_temp = max(temp_c)) %>%
   arrange(date, site, depth_m)
 
 #Combine all years
@@ -188,8 +189,8 @@ ggplot(temp_mma, aes(month,  avg_temp, color = factor(year))) +
                        labels = c("2020", "2021", "2022"),
                        values = c("deepskyblue1","darkviolet","darkblue"),
                        guide = guide_legend(reverse = TRUE)) +
-    scale_x_continuous(breaks = 1:12, "Month") + 
-    scale_y_continuous(limits = c(26, 30), breaks = seq(26, 30, 1), "Water Temperature (c)") + 
+    scale_x_continuous(breaks = 1:12) + 
+    labs(x = "Month", y = "Temperature (c)") +
     ggtitle("Average of Water Temperature") 
 
 
@@ -240,42 +241,100 @@ It is interesting that the isolated low temperature events in 2022 were all reco
 
 # 2020 low temp outliers
 temp20mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
-  rename("Date" = date, "Site" = site, "Depth (m)" = depth_m) %>%
-  nice_table(title = "2020 Temperatures Below 23 Degrees")
+  rename("Date" = date, 
+         "Site" = site, 
+         "Depth (m)" = depth_m, 
+         "Minimum" = min_temp, 
+         "Average" = avg_temp,
+         "Maximum" = max_temp) %>%
+  nice_table(title = "2020 Temperature Observations Below 23 Degrees (c)")
 
 #2021 low temp outliers
 temp21mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
-  rename("Date" = date, "Site" = site, "Depth (m)" = depth_m) %>%
-  nice_table(title = "2021 Temperatures Below 23 Degrees")
+  rename("Date" = date, 
+         "Site" = site, 
+         "Depth (m)" = depth_m, 
+         "Minimum" = min_temp, 
+         "Average" = avg_temp,
+         "Maximum" = max_temp) %>%
+  nice_table(title = "2021 Temperature Observations Below 23 Degrees (c)")
             
 #2022 low temp outliers
 temp22mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
-  rename("Date" = date, "Site" = site, "Depth (m)" = depth_m) %>%
-  nice_table(title = "2022 Temperatures Below 23 Degrees")
+  rename("Date" = date, 
+         "Site" = site, 
+         "Depth (m)" = depth_m, 
+         "Minimum" = min_temp, 
+         "Average" = avg_temp,
+         "Maximum" = max_temp) %>%
+  nice_table(title = "2022 Temperature Observations Below 23 Degrees (c)")
 ```
 
 ### Trend Modeling
 
 I made the decision to use the data collected from 12 meters from for my time series model.  By isolating my model to one location and one depth, I hope to create a more accurate model than if I were to assume all the data collected followed the same trend, regardless of depth.  Additionally, the Harbour Village data has few outliers in either direction over the three years of data collection.
 
-Using ....Autoregressive Integrated Moving Average (ARIMA)
-```{r time series model 1}
-# Below, filtering 12 meters from all sites, then averaging each day's data.
+Below, is the distribution of temperatures.  Once the maximum, average, and minimum temperatures are separated, a clear bi-modal distribution is visible.    
 
-avgTemp_12m <- temp_mma %>% 
+```{r viz of 12 meter data}
+# Below, filtering 12 meters from all sites, then averaging each day's data.
+temp_12m <- temp_mma %>% 
   filter(depth_m == 12) %>%
-  group_by(date) %>%
+  group_by(date)
+
+# Below, filtering for dates and avg. temps
+avgTemp12m <- temp_12m %>%
   summarize(avg_temp = mean(avg_temp)) %>%
   arrange(date)
 
+
+# Plotting distribution of stats.
+temp_12m %>% pivot_longer('max_temp':'avg_temp', 
+                          names_to = "stat", 
+                          values_to = "value") %>%
+  ggplot(aes(value, fill = stat)) +
+    geom_histogram(binwidth = 0.1, 
+                   alpha = 0.5, 
+                   position = "identity") +
+    scale_fill_discrete(labels = c("Average", "Maximum", "Minimum")) +
+    labs(x = "Temperature (c)", 
+         y = "Observations", 
+         fill = "Daily Temperature",
+         title = "Distribution of Temperatures at 12 Meters") +
+    theme(legend.position = c(0.85, 0.8))
+
+```
+
+
+An important factor in time series analysis is the continuity of time.  Below, I review the data for missing dates.    
+```{r modeling- creating time series}
+
 # QUESTION!!! Does the ts frame need to include every date or can it be missing dates?
-FullSeq <- seq.Date(from = min(avgTemp_12m$date), to = max(avgTemp_12m$date), by = 1)
-MissingDate <- FullSeq[!FullSeq %in% avgTemp_12m$date]
-MissingDate
+FullSeq <- seq.Date(from = min(avgTemp12m$date), to = max(avgTemp12m$date), by = 1)
+MissingDate <- FullSeq[!FullSeq %in% avgTemp12m$date]
+str(MissingDate)
+
+# Need to use MICE package?
+# Use statsNA from imputeTS package?
+
+# Below, genearting time sereies, plotting, and QQ plot.
+timeseries <- ts(avgTemp12m$avg_temp)
+plot(timeseries)
+
+# QQ plot.  
+qqnorm(timeseries, main = "QQ-plot")
+qqline(timeseries, col = "red")
+```
+
+
+
+
+Using ....Autoregressive Integrated Moving Average (ARIMA)
+```{r time series model 1}
 
 # Creating ts analysis
-timeseries <- ts(avgTemp_12m$avg_temp)
-plot(timeseries)
+
+
 
 # QUESTION!!! confirm 365 is correct.
 ts_diff <- diff(timeseries, lag = 365)
@@ -305,10 +364,14 @@ cor(timeseries_t1, timeseries_t0) * (n-1)/n
 # Below, we use autocorrelation function (acf) with lag.max to calculate correlations at various lags.  High correlation over multiple lags shows high persistence.
 acf(timeseries, lag.max = 50, plot = FALSE)
 acf(timeseries, lag.max = 50)
+pacf(timeseries, lag.max = 50)
 
-# Below, is a QQ plot.  
-qqnorm(timeseries, main = "QQ-plot")
-qqline(timeseries, col = "red")
+# Below, ploting time sereies and de-trended time series.
+par(mfrow = c(2,1))
+plot(timeseries)
+plot(diff(log(timeseries)))
+
+# Use sarima() from astsa package for multi-plot of ts model.
 ```
 
 
