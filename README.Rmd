@@ -17,6 +17,7 @@ library(lubridate)
 library(flextable) #for nice table
 library(rempsyc) #for nice table
 library(astsa) #for time series modeling and plotting
+library(imputeTS)
 ```
 
 
@@ -274,7 +275,7 @@ temp22mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
 
 I made the decision to use the data collected from 12 meters from for my time series model.  By isolating my model to one location and one depth, I hope to create a more accurate model than if I were to assume all the data collected followed the same trend, regardless of depth.  Additionally, the Harbour Village data has few outliers in either direction over the three years of data collection.
 
-Below, is the distribution of temperatures.  Once the maximum, average, and minimum temperatures are separated, a clear bi-modal distribution is visible.    
+Below, is the distribution of temperatures.  Once the maximum, average, and minimum temperatures are separated, a clear bi-modal distribution is visible.  Varition in the QQ-Plot also confirms the data is not normally distributed.  Future modeling includes a seasonality component to acknowledge the distribution.
 
 ```{r viz of 12 meter data}
 # Below, filtering 12 meters from all sites, then averaging each day's data.
@@ -289,7 +290,7 @@ avgTemp12m <- temp_12m %>%
 
 
 # Plotting distribution of stats.
-temp_12m %>% pivot_longer('max_temp':'avg_temp', 
+temp_12m %>% pivot_longer('min_temp':'max_temp', 
                           names_to = "stat", 
                           values_to = "value") %>%
   ggplot(aes(value, fill = stat)) +
@@ -303,27 +304,29 @@ temp_12m %>% pivot_longer('max_temp':'avg_temp',
          title = "Distribution of Temperatures at 12 Meters") +
     theme(legend.position = c(0.85, 0.8))
 
+# QQ plot.  
+qqnorm(avgTemp12m$avg_temp, main = "QQ-plot")
+qqline(avgTemp12m$avg_temp, col = "red")
 ```
 
 
-An important factor in time series analysis is the continuity of time.  Below, I review the data for missing dates.    
+An important factor in time series analysis is the continuity of time.  Using the statNA function from the *imputeTS* package, I determine that 197 observations are missing from the timeline.  This represents a significant proportion of the dataset (19.7%).  Unfortunately, filtering the original dataset for temperature records at 6 meters or 20 meters yields a greater percentage of missing observations.
+
 ```{r modeling- creating time series}
+# Populating complete date series
+avgTemp12_full <- avgTemp12m %>%
+  mutate(date = as.Date(date)) %>%
+  complete(date = seq.Date(min(date), max(date), by="day"))
 
-# QUESTION!!! Does the ts frame need to include every date or can it be missing dates?
-FullSeq <- seq.Date(from = min(avgTemp12m$date), to = max(avgTemp12m$date), by = 1)
-MissingDate <- FullSeq[!FullSeq %in% avgTemp12m$date]
-str(MissingDate)
+# Reviewing NAs of missing days.
+statsNA(avgTemp12_full$avg_temp)
 
-# Need to use MICE package?
-# Use statsNA from imputeTS package?
+ggplot(avgTemp12_full, aes(date, avg_temp)) +
+  geom_line(color = "red") +
+  labs(x="Date",
+       y="Average Temperature (c)",
+       title="Visualizing Missing Data")
 
-# Below, genearting time sereies, plotting, and QQ plot.
-timeseries <- ts(avgTemp12m$avg_temp)
-plot(timeseries)
-
-# QQ plot.  
-qqnorm(timeseries, main = "QQ-plot")
-qqline(timeseries, col = "red")
 ```
 
 
@@ -333,33 +336,16 @@ Using ....Autoregressive Integrated Moving Average (ARIMA)
 ```{r time series model 1}
 
 # Creating ts analysis
-
+# Below, generating time series.
+timeseries <- ts(avgTemp12_full$avg_temp)
+plot(timeseries)
 
 
 # QUESTION!!! confirm 365 is correct.
 ts_diff <- diff(timeseries, lag = 365)
 ts.plot(ts_diff)
 
-# Below, arima estimates white noise of the ts data.  The model matches the mean and var.
-# ARIMA = autoregressive integrated moving average
-white_noise <- arima(timeseries, order = c(0,0,0))
-mean(timeseries)
-var(timeseries)
 
-# Below, we calculate the correlation at 1 lag to see if one observation is dependent on another.
-# Define x_t0 as x[-1]
-timeseries_t0 <- timeseries[-1]
-# Define x_t1 as x[-n]
-n <- length(timeseries)
-timeseries_t1 <- timeseries[-n]
-# Confirm that x_t0 and x_t1 are (x[t], x[t-1]) pairs  
-head(cbind(timeseries_t0, timeseries_t1))
-# Plot x_t0 and x_t1
-plot(timeseries_t0, timeseries_t1)
-# View the correlation between x_t0 and x_t1
-cor(timeseries_t0, timeseries_t1)
-# Confirm that difference factor is (n-1)/n
-cor(timeseries_t1, timeseries_t0) * (n-1)/n
 
 # Below, we use autocorrelation function (acf) with lag.max to calculate correlations at various lags.  High correlation over multiple lags shows high persistence.
 acf(timeseries, lag.max = 50, plot = FALSE)
@@ -371,7 +357,26 @@ par(mfrow = c(2,1))
 plot(timeseries)
 plot(diff(log(timeseries)))
 
-# Use sarima() from astsa package for multi-plot of ts model.
+# Process
+# 1. save diff(diff(timeseries), lag = 365) to remove trends and make stationary.
+# 2. plot standardized object.
+# 3. run acf2() to compare lag drop offs or tails between acf vs pacf(). 
+#.      tailing acf suggests AR model (x,1,0,0); tailing pacf suggests MA model (x,0,0,1.  both suggests ARMA model (x,1,0,1)
+
+# Use sarima() from astsa package for multi-plot of ts model from diff(log(timesereies)).
+# ACF residuals should be below the dotted line; QQ plot should be on the line; p values should be above the dotted line.
+sarima(timeseries, 1,0,0) #AR model
+sarima(timeseries, 0,0,1) #MA1 model
+sarima(timeseries, 0,0,2) #MA2 model
+sarima(timeseries, 1,0,1) #ARMA model.  Look for lowest AIC and BIC residuals.
+sarima(timeseries, 1,1,1) #ARIMA model is used on base data when the differenced data looks like ARMA of undifferenced data.
+
+#seasonal
+#sarima(timeseries, p,d,q, P,D,Q, S)
+#sarima.for(timeseries, n.ahead=12, pdq,PDQ,S)
+
+# Forcasting
+# use arima.for(timeseries, n.head = number of periods to forcase, 1,1,1). Last args match model params.
 ```
 
 
