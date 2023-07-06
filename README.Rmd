@@ -277,7 +277,7 @@ I made the decision to use the data collected from 12 meters from for my time se
 
 Below, is the distribution of temperatures.  Once the maximum, average, and minimum temperatures are separated, a clear bi-modal distribution is visible.  Varition in the QQ-Plot also confirms the data is not normally distributed.  Future modeling includes a seasonality component to acknowledge the distribution.
 
-```{r viz of 12 meter data}
+```{r model prep- filtering to 12m}
 # Below, filtering 12 meters from all sites, then averaging each day's data.
 temp_12m <- temp_mma %>% 
   filter(depth_m == 12) %>%
@@ -312,7 +312,7 @@ qqline(avgTemp12m$avg_temp, col = "red")
 
 An important factor in time series analysis is the continuity of time.  Using the statNA function from the *imputeTS* package, I determine that 197 observations are missing from the timeline.  This represents a significant proportion of the dataset (19.7%).  Unfortunately, filtering the original dataset for temperature records at 6 meters or 20 meters yields a greater percentage of missing observations.
 
-```{r modeling- creating time series}
+```{r modeling prep for NAs}
 # Populating complete date series
 avgTemp12_full <- avgTemp12m %>%
   mutate(date = as.Date(date)) %>%
@@ -322,11 +322,19 @@ avgTemp12_full <- avgTemp12m %>%
 statsNA(avgTemp12_full$avg_temp)
 
 ggplot(avgTemp12_full, aes(date, avg_temp)) +
-  geom_line(color = "red") +
+  geom_line(color = "blue4") +
   labs(x="Date",
        y="Average Temperature (c)",
        title="Visualizing Missing Data")
 
+ggplot_na_distribution(avgTemp12_full$avg_temp) +
+  labs(y="Temperature (c)")
+
+
+
+
+
+#ggplot_na_imputations()
 ```
 
 
@@ -340,11 +348,9 @@ Using ....Autoregressive Integrated Moving Average (ARIMA)
 timeseries <- ts(avgTemp12_full$avg_temp)
 plot(timeseries)
 
-
-# QUESTION!!! confirm 365 is correct.
-ts_diff <- diff(timeseries, lag = 365)
-ts.plot(ts_diff)
-
+d_timeseries <- diff(timeseries)
+dd_timeseries <- diff(d_timeseries, lag = 365)
+acf2(d_timeseries)
 
 
 # Below, we use autocorrelation function (acf) with lag.max to calculate correlations at various lags.  High correlation over multiple lags shows high persistence.
