@@ -310,7 +310,8 @@ qqline(avgTemp12m$avg_temp, col = "red")
 ```
 
 
-An important factor in time series analysis is the continuity of time.  Using the statNA function from the *imputeTS* package, I determine that 197 observations are missing from the timeline.  This represents a significant proportion of the dataset (19.7%).  Unfortunately, filtering the original dataset for temperature records at 6 meters or 20 meters yields a greater percentage of missing observations.
+An important factor in time series analysis is the continuity of time.  Using the statNA function from the *imputeTS* package, I determine that 197 observations are missing from the timeline.  This represents a significant proportion of the data set (19.7%).  Unfortunately, filtering the original data set for temperature records at 6 meters or 20 meters yields a greater percentage of missing observations.  
+The plots below indicate that the data is missing at random.  Imputation must be used to complete the dataset as reducing the site of dataset would remove a full year of seasonal trends.....
 
 ```{r modeling prep for NAs}
 # Populating complete date series
@@ -327,41 +328,42 @@ ggplot(avgTemp12_full, aes(date, avg_temp)) +
        y="Average Temperature (c)",
        title="Visualizing Missing Data")
 
-ggplot_na_distribution(avgTemp12_full$avg_temp) +
+timeseries <- ts(avgTemp12_full$avg_temp)
+
+ggplot_na_distribution(timeseries) +
   labs(y="Temperature (c)")
 
-
-
-
-
-#ggplot_na_imputations()
 ```
+There are various imputation strategies.  The use of random, mean, or last-observed-carried-forward imputation were ruled out due to the seasonal nature of the data.  Linear, seasonally split, and seasonally decomposed imputation are modeled below.  Linear modeling is the simplest method, but appears overly simplistic.  The seasonal split method separates the data into seasons before imputing missing values base on each season.  This method adds dimension, but it is apparent that some imputations are based on micro trends from surrounding years that diverge from the immediate slope.  This is a likely due to the smaller size of data set.  Seasonally decomposed imputation removes the seasonal trends of the data set, imputes values based on the static series, then reintroduces the seasonal trend.  When applied to the current data set, this method applies dimensionality while following a more direct path between actual values.
 
+```{r model prep, imputing missing values}
 
+#kalman <- na_kalman(timeseries, model = "auto.arima")
+#locf <- na_locf(timeseries, na_remaining = "rev")
+#ma <- na_ma(timeseries, k=4, weighting="exponential")
+interpolation <- na_interpolation(timeseries, option = "linear")
+seasplit <- na_seasplit(timeseries, algorithm = "ma", find_frequency = TRUE)
+seadec <- na_seadec(timeseries, algorithm = "interpolation", find_frequency = TRUE)
+
+#ggplot_na_imputations(timeseries, kalman)
+#ggplot_na_imputations(timeseries, locf)
+#ggplot_na_imputations(timeseries, ma)
+ggplot_na_imputations(timeseries,interpolation, title = "Linear Interpolation")
+ggplot_na_imputations(timeseries, seasplit, title = "Seasonally Split Interpolation")
+ggplot_na_imputations(timeseries, seadec, title = "Seasonally Decomposed Interpolation")
+
+```
 
 
 Using ....Autoregressive Integrated Moving Average (ARIMA)
 ```{r time series model 1}
 
-# Creating ts analysis
-# Below, generating time series.
-timeseries <- ts(avgTemp12_full$avg_temp)
-plot(timeseries)
+ts_complete <- seadec
 
-d_timeseries <- diff(timeseries)
-dd_timeseries <- diff(d_timeseries, lag = 365)
-acf2(d_timeseries)
-
-
-# Below, we use autocorrelation function (acf) with lag.max to calculate correlations at various lags.  High correlation over multiple lags shows high persistence.
-acf(timeseries, lag.max = 50, plot = FALSE)
-acf(timeseries, lag.max = 50)
-pacf(timeseries, lag.max = 50)
-
-# Below, ploting time sereies and de-trended time series.
+# Below, ploting time series and de-trended time series.
 par(mfrow = c(2,1))
-plot(timeseries)
-plot(diff(log(timeseries)))
+plot(ts_complete)
+plot(diff(diff(ts_complete), lag = 365))
 
 # Process
 # 1. save diff(diff(timeseries), lag = 365) to remove trends and make stationary.
@@ -369,20 +371,26 @@ plot(diff(log(timeseries)))
 # 3. run acf2() to compare lag drop offs or tails between acf vs pacf(). 
 #.      tailing acf suggests AR model (x,1,0,0); tailing pacf suggests MA model (x,0,0,1.  both suggests ARMA model (x,1,0,1)
 
+# Below, ploting auto correlation and partial auto correlation.
+# Should it be diffed????
+acf2(ts_complete)
+acf2(diff(diff(ts_complete)))
+
 # Use sarima() from astsa package for multi-plot of ts model from diff(log(timesereies)).
 # ACF residuals should be below the dotted line; QQ plot should be on the line; p values should be above the dotted line.
-sarima(timeseries, 1,0,0) #AR model
-sarima(timeseries, 0,0,1) #MA1 model
-sarima(timeseries, 0,0,2) #MA2 model
-sarima(timeseries, 1,0,1) #ARMA model.  Look for lowest AIC and BIC residuals.
-sarima(timeseries, 1,1,1) #ARIMA model is used on base data when the differenced data looks like ARMA of undifferenced data.
+sarima(ts_complete, 3,0,0) #AR model
+#sarima(ts_complete, 0,0,1) #MA model
+sarima(ts_complete, 3,0,1) #ARMA model.  Look for lowest AIC and BIC residuals.
+sarima(ts_complete, 1,1,1) #ARIMA model is used on base data when the differenced data looks like ARMA of undifferenced data.
+sarima(ts_complete, 2,1,1)
 
 #seasonal
-#sarima(timeseries, p,d,q, P,D,Q, S)
-#sarima.for(timeseries, n.ahead=12, pdq,PDQ,S)
+#sarima(ts_complete, p,d,q, P,D,Q, S)
+sarima(ts_complete, 3,0,1,1,0,0,60)
+#sarima.for(ts_complete, n.ahead=12, pdq,PDQ,S)
 
 # Forcasting
-# use arima.for(timeseries, n.head = number of periods to forcase, 1,1,1). Last args match model params.
+# use arima.for(ts_complete, n.head = number of periods to forcase, 1,1,1). Last args match model params.
 ```
 
 
