@@ -372,22 +372,14 @@ plot(diff(diff(ts_complete), lag = 365))
 #.      tailing acf suggests AR model (x,1,0,0); tailing pacf suggests MA model (x,0,0,1.  both suggests ARMA model (x,1,0,1)
 
 # Below, ploting auto correlation and partial auto correlation.
-# Should it be diffed????
-acf2(ts_complete)
 acf2(diff(diff(ts_complete)))
 
-# Use sarima() from astsa package for multi-plot of ts model from diff(log(timesereies)).
-# ACF residuals should be below the dotted line; QQ plot should be on the line; p values should be above the dotted line.
-sarima(ts_complete, 3,0,0) #AR model
-#sarima(ts_complete, 0,0,1) #MA model
-sarima(ts_complete, 3,0,1) #ARMA model.  Look for lowest AIC and BIC residuals.
-sarima(ts_complete, 1,1,1) #ARIMA model is used on base data when the differenced data looks like ARMA of undifferenced data.
-sarima(ts_complete, 2,1,1)
+# Use sarima() from astsa package for multi-plot of ts model.
 
-#seasonal
 #sarima(ts_complete, p,d,q, P,D,Q, S)
-sarima(ts_complete, 3,0,1,1,0,0,60)
-#sarima.for(ts_complete, n.ahead=12, pdq,PDQ,S)
+model <- sarima(ts_complete, p=0,d=2,q=1,P=1,D=1,Q=0,S=0)
+model
+model$ttable
 
 # Forcasting
 # use arima.for(ts_complete, n.head = number of periods to forcase, 1,1,1). Last args match model params.
