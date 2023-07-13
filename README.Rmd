@@ -273,14 +273,16 @@ temp22mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
 
 ### Trend Modeling
 
-I made the decision to use the data collected from 12 meters from for my time series model.  By isolating my model to one location and one depth, I hope to create a more accurate model than if I were to assume all the data collected followed the same trend, regardless of depth.  Additionally, the Harbour Village data has few outliers in either direction over the three years of data collection.
+I made the decision to use the data collected from 20 meters from for my time series model.  By isolating my model to one location and one depth, I hope to create a more accurate model than if I were to assume all the data collected followed the same trend, regardless of depth.  Additionally, the Harbour Village data has few outliers in either direction over the three years of data collection.
 
-Below, is the distribution of temperatures.  Once the maximum, average, and minimum temperatures are separated, a clear bi-modal distribution is visible.  Varition in the QQ-Plot also confirms the data is not normally distributed.  Future modeling includes a seasonality component to acknowledge the distribution.
+Below, is the distribution of temperatures.  Once the maximum, average, and minimum temperatures are separated, a clear bi-modal distribution is visible.  Variation in the QQ-Plot also confirms the data is not normally distributed.  
+
+Future modeling includes a seasonality component to acknowledge the distribution. 
 
 ```{r model prep- filtering to 12m}
 # Below, filtering 12 meters from all sites, then averaging each day's data.
 temp_12m <- temp_mma %>% 
-  filter(depth_m == 12) %>%
+  filter(depth_m == 20) %>%
   group_by(date)
 
 # Below, filtering for dates and avg. temps
@@ -310,16 +312,18 @@ qqline(avgTemp12m$avg_temp, col = "red")
 ```
 
 
-An important factor in time series analysis is the continuity of time.  Using the statNA function from the *imputeTS* package, I determine that 197 observations are missing from the timeline.  This represents a significant proportion of the data set (19.7%).  Unfortunately, filtering the original data set for temperature records at 6 meters or 20 meters yields a greater percentage of missing observations.  
+An important factor in time series analysis is the continuity of time.  Using the statNA function from the *imputeTS* package, I determine that 197 observations are missing from the timeline.  This represents a significant proportion of the data set (19.7%).  Unfortunately, filtering the original data set for temperature records at 6 meters or 20 meters yields a greater percentage of missing observations.  In an effort to minimize 
 The plots below indicate that the data is missing at random.  Imputation must be used to complete the dataset as reducing the site of dataset would remove a full year of seasonal trends.....
 
 ```{r modeling prep for NAs}
 # Populating complete date series
+
 avgTemp12_full <- avgTemp12m %>%
   mutate(date = as.Date(date)) %>%
   complete(date = seq.Date(min(date), max(date), by="day"))
 
-# Reviewing NAs of missing days.
+
+# Reviewing NAs by missing days.
 statsNA(avgTemp12_full$avg_temp)
 
 ggplot(avgTemp12_full, aes(date, avg_temp)) +
@@ -328,13 +332,39 @@ ggplot(avgTemp12_full, aes(date, avg_temp)) +
        y="Average Temperature (c)",
        title="Visualizing Missing Data")
 
-timeseries <- ts(avgTemp12_full$avg_temp)
+```
+
+
+In order to minimize the amount of imputation needed, I have aggregated the data into weekly temperature averages.  This reduces the percentage of missing data.  Additionally, the weekly segments yields a more manageable data set for seasonal differencing.
+
+```{r Modeling Prep- Aggregating into weekly data}
+#Aggregating into weekly averages to minimize imputation needs.
+avgTemp12_full <- avgTemp12_full %>% 
+  mutate(week = week(date),
+         year = year(date))
+
+avgTemp12_weekly <- avgTemp12_full %>% 
+  select(year, week, avg_temp) %>%
+  group_by(year, week) %>%
+  mutate(wk_temp = mean(avg_temp, na.rm=TRUE)) %>%
+  distinct(year, week, wk_temp)
+
+#Validating all weeks are present
+#table(avgTemp12_weekly$year, avgTemp12_weekly$week)
+
+
+#Reviewing missing data from weekly averages
+statsNA(avgTemp12_weekly$wk_temp)
+
+timeseries <- ts(avgTemp12_weekly$wk_temp)
 
 ggplot_na_distribution(timeseries) +
   labs(y="Temperature (c)")
-
 ```
+
+
 There are various imputation strategies.  The use of random, mean, or last-observed-carried-forward imputation were ruled out due to the seasonal nature of the data.  Linear, seasonally split, and seasonally decomposed imputation are modeled below.  Linear modeling is the simplest method, but appears overly simplistic.  The seasonal split method separates the data into seasons before imputing missing values base on each season.  This method adds dimension, but it is apparent that some imputations are based on micro trends from surrounding years that diverge from the immediate slope.  This is a likely due to the smaller size of data set.  Seasonally decomposed imputation removes the seasonal trends of the data set, imputes values based on the static series, then reintroduces the seasonal trend.  When applied to the current data set, this method applies dimensionality while following a more direct path between actual values.
+
 
 ```{r model prep, imputing missing values}
 
@@ -363,21 +393,24 @@ ts_complete <- seadec
 # Below, ploting time series and de-trended time series.
 par(mfrow = c(2,1))
 plot(ts_complete)
-plot(diff(diff(ts_complete), lag = 365))
+plot(diff(diff(ts_complete)))
 
 # Process
-# 1. save diff(diff(timeseries), lag = 365) to remove trends and make stationary.
+# 1. save diff(diff(timeseries), lag = 52) to remove trends and make stationary.
 # 2. plot standardized object.
 # 3. run acf2() to compare lag drop offs or tails between acf vs pacf(). 
 #.      tailing acf suggests AR model (x,1,0,0); tailing pacf suggests MA model (x,0,0,1.  both suggests ARMA model (x,1,0,1)
 
-# Below, ploting auto correlation and partial auto correlation.
-acf2(diff(diff(ts_complete)))
+# Below, plotting auto correlation and partial auto correlation.
+
+
+acf2(diff(diff(ts_complete)),  max.lag=20)
+
 
 # Use sarima() from astsa package for multi-plot of ts model.
 
 #sarima(ts_complete, p,d,q, P,D,Q, S)
-model <- sarima(ts_complete, p=0,d=2,q=1,P=1,D=1,Q=0,S=0)
+model <- sarima(ts_complete, p=0,d=1,q=0,P=0,D=1,Q=1,S=53, max.lag = 52)
 model
 model$ttable
 
