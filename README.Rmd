@@ -282,7 +282,7 @@ Future modeling includes a seasonality component to acknowledge the distribution
 ```{r model prep- filtering to 12m}
 # Below, filtering 12 meters from all sites, then averaging each day's data.
 temp_12m <- temp_mma %>% 
-  filter(depth_m == 20) %>%
+  filter(depth_m == 12) %>%
   group_by(date)
 
 # Below, filtering for dates and avg. temps
@@ -372,14 +372,14 @@ There are various imputation strategies.  The use of random, mean, or last-obser
 #locf <- na_locf(timeseries, na_remaining = "rev")
 #ma <- na_ma(timeseries, k=4, weighting="exponential")
 interpolation <- na_interpolation(timeseries, option = "linear")
-seasplit <- na_seasplit(timeseries, algorithm = "ma", find_frequency = TRUE)
+#seasplit <- na_seasplit(timeseries, algorithm = "ma", find_frequency = TRUE)
 seadec <- na_seadec(timeseries, algorithm = "interpolation", find_frequency = TRUE)
 
 #ggplot_na_imputations(timeseries, kalman)
 #ggplot_na_imputations(timeseries, locf)
 #ggplot_na_imputations(timeseries, ma)
 ggplot_na_imputations(timeseries,interpolation, title = "Linear Interpolation")
-ggplot_na_imputations(timeseries, seasplit, title = "Seasonally Split Interpolation")
+#ggplot_na_imputations(timeseries, seasplit, title = "Seasonally Split Interpolation")
 ggplot_na_imputations(timeseries, seadec, title = "Seasonally Decomposed Interpolation")
 
 ```
@@ -404,18 +404,24 @@ plot(diff(diff(ts_complete)))
 # Below, plotting auto correlation and partial auto correlation.
 
 
-acf2(diff(diff(ts_complete)),  max.lag=20)
+acf2(diff(diff(ts_complete)))
 
+```
+
+
+
+```{r modeling and tuning}
 
 # Use sarima() from astsa package for multi-plot of ts model.
 
 #sarima(ts_complete, p,d,q, P,D,Q, S)
-model <- sarima(ts_complete, p=0,d=1,q=0,P=0,D=1,Q=1,S=53, max.lag = 52)
+model <- sarima(ts_complete, p=0,d=1,q=0,P=0,D=1,Q=1,S=52)
 model
 model$ttable
 
 # Forcasting
 # use arima.for(ts_complete, n.head = number of periods to forcase, 1,1,1). Last args match model params.
+
 ```
 
 
