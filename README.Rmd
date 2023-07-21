@@ -281,18 +281,18 @@ Future modeling includes a seasonality component to acknowledge the distribution
 
 ```{r model prep- filtering to 12m}
 # Below, filtering 12 meters from all sites, then averaging each day's data.
-temp_12m <- temp_mma %>% 
-  filter(depth_m == 12) %>%
+temp_20m <- temp_mma %>% 
+  filter(depth_m == 20) %>%
   group_by(date)
 
 # Below, filtering for dates and avg. temps
-avgTemp12m <- temp_12m %>%
+avgTemp20m <- temp_20m %>%
   summarize(avg_temp = mean(avg_temp)) %>%
   arrange(date)
 
 
 # Plotting distribution of stats.
-temp_12m %>% pivot_longer('min_temp':'max_temp', 
+temp_20m %>% pivot_longer('min_temp':'max_temp', 
                           names_to = "stat", 
                           values_to = "value") %>%
   ggplot(aes(value, fill = stat)) +
@@ -307,8 +307,8 @@ temp_12m %>% pivot_longer('min_temp':'max_temp',
     theme(legend.position = c(0.85, 0.8))
 
 # QQ plot.  
-qqnorm(avgTemp12m$avg_temp, main = "QQ-plot")
-qqline(avgTemp12m$avg_temp, col = "red")
+qqnorm(avgTemp20m$avg_temp, main = "QQ-plot")
+qqline(avgTemp20m$avg_temp, col = "red")
 ```
 
 
@@ -318,15 +318,15 @@ The plots below indicate that the data is missing at random.  Imputation must be
 ```{r modeling prep for NAs}
 # Populating complete date series
 
-avgTemp12_full <- avgTemp12m %>%
+avgTemp20_full <- avgTemp20m %>%
   mutate(date = as.Date(date)) %>%
   complete(date = seq.Date(min(date), max(date), by="day"))
 
 
 # Reviewing NAs by missing days.
-statsNA(avgTemp12_full$avg_temp)
+statsNA(avgTemp20_full$avg_temp)
 
-ggplot(avgTemp12_full, aes(date, avg_temp)) +
+ggplot(avgTemp20_full, aes(date, avg_temp)) +
   geom_line(color = "blue4") +
   labs(x="Date",
        y="Average Temperature (c)",
@@ -339,11 +339,11 @@ In order to minimize the amount of imputation needed, I have aggregated the data
 
 ```{r Modeling Prep- Aggregating into weekly data}
 #Aggregating into weekly averages to minimize imputation needs.
-avgTemp12_full <- avgTemp12_full %>% 
+avgTemp20_full <- avgTemp20_full %>% 
   mutate(week = week(date),
          year = year(date))
 
-avgTemp12_weekly <- avgTemp12_full %>% 
+avgTemp20_weekly <- avgTemp20_full %>% 
   select(year, week, avg_temp) %>%
   group_by(year, week) %>%
   mutate(wk_temp = mean(avg_temp, na.rm=TRUE)) %>%
@@ -354,9 +354,9 @@ avgTemp12_weekly <- avgTemp12_full %>%
 
 
 #Reviewing missing data from weekly averages
-statsNA(avgTemp12_weekly$wk_temp)
+statsNA(avgTemp20_weekly$wk_temp)
 
-timeseries <- ts(avgTemp12_weekly$wk_temp)
+timeseries <- ts(avgTemp20_weekly$wk_temp)
 
 ggplot_na_distribution(timeseries) +
   labs(y="Temperature (c)")
@@ -372,14 +372,14 @@ There are various imputation strategies.  The use of random, mean, or last-obser
 #locf <- na_locf(timeseries, na_remaining = "rev")
 #ma <- na_ma(timeseries, k=4, weighting="exponential")
 interpolation <- na_interpolation(timeseries, option = "linear")
-#seasplit <- na_seasplit(timeseries, algorithm = "ma", find_frequency = TRUE)
+seasplit <- na_seasplit(timeseries, algorithm = "ma", find_frequency = TRUE)
 seadec <- na_seadec(timeseries, algorithm = "interpolation", find_frequency = TRUE)
 
 #ggplot_na_imputations(timeseries, kalman)
 #ggplot_na_imputations(timeseries, locf)
 #ggplot_na_imputations(timeseries, ma)
 ggplot_na_imputations(timeseries,interpolation, title = "Linear Interpolation")
-#ggplot_na_imputations(timeseries, seasplit, title = "Seasonally Split Interpolation")
+ggplot_na_imputations(timeseries, seasplit, title = "Seasonally Split Interpolation")
 ggplot_na_imputations(timeseries, seadec, title = "Seasonally Decomposed Interpolation")
 
 ```
@@ -389,11 +389,19 @@ Using ....Autoregressive Integrated Moving Average (ARIMA)
 ```{r time series model 1}
 
 ts_complete <- seadec
+train <- ts_complete[1:104]
+test <- ts_complete[105:length(ts_complete)]
 
 # Below, ploting time series and de-trended time series.
-par(mfrow = c(2,1))
+par(mfrow = c(3,1))
 plot(ts_complete)
+plot(diff(ts_complete))
 plot(diff(diff(ts_complete)))
+
+par(mfrow = c(3,1))
+ts.plot(train)
+ts.plot(diff(train))
+ts.plot(diff(diff(train)))
 
 # Process
 # 1. save diff(diff(timeseries), lag = 52) to remove trends and make stationary.
@@ -402,10 +410,15 @@ plot(diff(diff(ts_complete)))
 #.      tailing acf suggests AR model (x,1,0,0); tailing pacf suggests MA model (x,0,0,1.  both suggests ARMA model (x,1,0,1)
 
 # Below, plotting auto correlation and partial auto correlation.
+diff1 <- diff(ts_complete)
+diff2 <- diff(diff1)
+par(mfrow = c(2,1))
+acf2(diff2)
 
-
-acf2(diff(diff(ts_complete)))
-
+traindiff <- diff(train, lag=52)
+traindiff2 <- diff(train)
+par(mfrow = c(2,1))
+acf2(traindiff, max.lag = 50)
 ```
 
 
@@ -413,15 +426,24 @@ acf2(diff(diff(ts_complete)))
 ```{r modeling and tuning}
 
 # Use sarima() from astsa package for multi-plot of ts model.
-
 #sarima(ts_complete, p,d,q, P,D,Q, S)
-model <- sarima(ts_complete, p=0,d=1,q=0,P=0,D=1,Q=1,S=52)
+
+#best model for train data
+trainmod <- sarima(train, p=1,d=1,q=2,P=1,D=1,Q=0,S=27)
+trainmod
+
+
+#best model for complete data set
+model <- sarima(ts_complete, p=2,d=1,q=2,P=0,D=1,Q=1,S=6)
 model
-model$ttable
 
 # Forcasting
-# use arima.for(ts_complete, n.head = number of periods to forcase, 1,1,1). Last args match model params.
+# use sarima.for(ts_complete, n.ahead = number of periods to forcase, 1,1,1). Last args match model params.
 
+pred <- sarima.for(train, n.ahead=length(test), p=1,d=1,q=2,P=1,D=1,Q=0,S=27)
+
+#RMSE
+sqrt(mean((pred$pred - test)^2))
 ```
 
 
