@@ -1,8 +1,8 @@
 ---
-title: "Analysis of 2020-2022 Water Temperatures"
+title: "Analysis of Water Temperature Trends Using SARIMA"
 subtitle: "A Collaboration with STINAPA"
 author: "Tadge McWilliams"
-date: "June 8th, 2023"
+date: "July 30th, 2023"
 output: 
   html_document:
     toc: TRUE
@@ -11,13 +11,18 @@ output:
 ---
 
 ```{r loading packages, include=FALSE, echo=FALSE}
+library(knitr) #global settings
 library(readxl)
 library(tidyverse) 
 library(lubridate) 
 library(flextable) #for nice table
 library(rempsyc) #for nice table
 library(astsa) #for time series modeling and plotting
-library(imputeTS)
+library(imputeTS) #for imputing missing time series data
+```
+
+```{r global settings, setup, include=FALSE}
+opts_chunk$set(echo = TRUE, message = FALSE)
 ```
 
 
@@ -34,30 +39,37 @@ tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
 ...summary of data, analysis, methods, and findings.
 
 ## Data Collected
-...highlevel overview of the data collected.  Quantity, sites, depths, locations, missing data.
+The data provided was collected during 2020 through 2022 by Stichting Nationale Parken Bonaire (STINAPA) using HOBO temperature and light data loggers.  Data loggers were place in four locations and at three depths per location.  Each data logger recorded a temperature observation every five minutes.  Each weeks, data was collected and the HOBO data loggers were cleaned by STINAPA. In total, there are **1,932,026 observations**.  Each observation was recorded with the following variables:
+
+**date:** Date observation was collected (Y-M-D).
+**time:** Time observation was collected (H-M-S).
+**temp_c:** Temperature recorded in celcius.
+**sensor_id:** Serial number of HOBO data logger. 
+**site:** Location of datalogger.
+**depth_m:** The depth of the data logger in meters.
 
 ## Methodology
 ...how was data handeled. what formuli were used.  what past work was used
 
-### Outliers
+### Data Cleaning
 
 Outliers play an important part in this data set.  Statistically, outliers are observations that fall beyond the upper and lower quartiles by at least 1.5 times the interquartile range. While outliers can represent collection errors, they can also represent real environmental anomalies that lead to new discoveries or help to explain a greater trend in the data.  For these reasons, I have used a conservative approach in handling outliers.
 
-For this data set I chose to include all observations below the first quartile.  My reasoning is as follows: First, it is reasonable to assume that abnormally low temperature readings are legitimate.  Given Bonaire's hot climate, unnatural readings are difficult to produce unless the sensor malfunctions or the sensor is placed in an artificially cooled environment.  Second, upwellings of colder water have been recorded in the past, and these upwellings can have a significant effect on the environment.  Thus, their presence is an important feature for study.
+For this data set I chose to include all observations below the first quartile.  My reasoning is as follows: First, it is reasonable to assume that abnormally low temperature readings are legitimate.  Given Bonaire's hot climate, unnatural readings are difficult to produce unless a data logger malfunctions or is placed in an artificially cooled environment.  Secondly, upwellings of colder water have been recorded in the past, and these upwellings can have a significant effect on the environment.  Thus, their presence is an important feature for study.
 
-Outliers above the third quartile were carefully considered.  In reviewing the data, it is clear that some temperature readings are impossible ocean temperatures.  There is also a plausible scenario in which the data sensors continued to record temperatures when they were brought above water.  They were likely laying on a boat in direct sun during weekly cleaning and data retrieval.  I concluded that the impossible values should be removed from the dataset so as to yield a more accurate analysis, but choosing a threshold for unnatural observations was challenging.  Initially, I calculated the the threshold using a standard statistical outlier method (Q3 + 1.5 x IQR) for each year; however, a significant number of observations fall along that temperature.  Additionally, the data appears to have a multi-modal distribution.  This is likely due to seasonal weather patterns.  Setting a outlier threshold of 1.5 x IQR is typically only an acceptable practice with normally distributed data.
+Outliers above the third quartile were carefully considered.  In reviewing the data, it is clear that some temperature readings are impossible ocean temperatures.  There is also a plausible scenario in which the data loggers continued to record temperatures when they were brought above water.  They were likely placed on a boat in direct sunlight during weekly cleaning and data retrieval.  I concluded that the impossible values should be removed from the data set so as to yield a more accurate analysis, but choosing a threshold for unnatural observations was challenging.  Initially, I calculated the the threshold using a standard statistical outlier method (Q3 + 1.5 x IQR) for each year; however, a significant number of observations fall along that threshold.  Additionally, the data appears to have a bi-modal distribution due to seasonal weather patterns.  Using an outlier threshold of 1.5 x IQR is typically only an acceptable practice with normally distributed data.
 
-After consulting Erik Meesters, Tropical Marine Ecologist and Bio Statistician at Wageningen Marine Research, I agreed with his suggestion that any observations above 33 degrees celsius were not recorded in the water[^1].  The visualizations below help to confirm that while a 33 degree threshold is somewhat arbitrary, this higher threshold includes potentially natural outliers while excluding the majority of observations that are impossible for the climate.  This method could be deemed overly conservative or simplistic, but as Erik aptly suggested, it would be prudent not to omit any observations unless you are 100% sure the reading is wrong.
+In consulting Erik Meesters, Tropical Marine Ecologist and Bio Statistician at Wageningen Marine Research, I agreed with his suggestion that any observations above 33 degrees celsius were not recorded in the water[^1].  The visualizations below help to confirm that while a 33 degree threshold is made a priori, the greater threshold includes potentially natural outliers while excluding the majority of observations that are impossible for the climate.  This method could be deemed overly conservative or simplistic, but as Erik aptly suggested, it would be prudent not to omit any observations unless you are 100% sure the reading is wrong.
 
 [^1]: E. Meesters, personal communication, March 16th, 2023.
 
 ```{r 2020 outliers, echo=FALSE, warning=FALSE}
-ggplot(tl2020, aes(temp_c)) +
-  geom_bar(width = 0.1) + 
-  facet_wrap(~depth_m) +
-  xlab("Temperature (c)") +
-  ylab("Observations") +
-  ggtitle("2020 Distribution by Sensor Depth (m)")
+#ggplot(tl2020, aes(temp_c)) +
+#  geom_bar(width = 0.1) + 
+#  facet_wrap(~depth_m) +
+#  xlab("Temperature (c)") +
+#  ylab("Observations") +
+#  ggtitle("2020 Distribution by Sensor Depth (m)")
 
 quant2020 <- quantile(tl2020$temp_c, probs = c(0.25, 0.75))
 statoutlier2020 <- (IQR(tl2020$temp_c) * 1.5) + quant2020[2]
@@ -75,12 +87,12 @@ ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) +
 
 
 ```{r 2021 outliers, echo=FALSE, warning=FALSE}
-ggplot(tl2021, aes(temp_c)) +
-  geom_bar(width = 0.1) + 
-  facet_wrap(~depth_m) +
-  xlab("Temperature (c)") +
-  ylab("Data Points") +
-  ggtitle("2021 Distribution by Sensor Depth (m)")
+#ggplot(tl2021, aes(temp_c)) +
+#  geom_bar(width = 0.1) + 
+#  facet_wrap(~depth_m) +
+#  xlab("Temperature (c)") +
+#  ylab("Data Points") +
+#  ggtitle("2021 Distribution by Sensor Depth (m)")
 
 quant2021 <- quantile(tl2021$temp_c, probs = c(0.25, 0.75))
 statoutlier2021 <- (IQR(tl2021$temp_c) * 1.5) + quant2021[2]
@@ -98,12 +110,12 @@ ggplot(tl2021, aes(x=factor(month(date)), y = temp_c)) +
 
 
 ```{r 2022 outliers, echo=FALSE, warning=FALSE}
-ggplot(tl2022, aes(temp_c)) +
-  geom_bar(width = 0.1) + 
-  facet_wrap(~depth_m) +
-  xlab("Temperature (c)") +
-  ylab("Data Points") +
-  ggtitle("2022 Distribution by Sensor Depth (m)")
+#ggplot(tl2022, aes(temp_c)) +
+#  geom_bar(width = 0.1) + 
+#  facet_wrap(~depth_m) +
+#  xlab("Temperature (c)") +
+#  ylab("Data Points") +
+#  ggtitle("2022 Distribution by Sensor Depth (m)")
 
 quant2022 <- quantile(tl2022$temp_c, probs = c(0.25, 0.75))
 statoutlier2022 <- (IQR(tl2022$temp_c) * 1.5) + quant2022[2]
@@ -143,7 +155,7 @@ tl2022_33$time <- strftime(tl2022_33$time, format="%H:%M:%S")
 ## Data Analysis
 
 I aggregated the data by date, then filtered for the daily minimum, maximum, and average temperatures.  
-Average temperatures during 2022 were lower in many months in in 2020 or 2021.  ...La Ni$\tilde{n}$a info to back this up???
+Average temperatures during 2021 were lower in many months in in 2020 or 2022.  Review of average temperatures by depth indicate a significant decrease in temperature at six meters during 2021 and a greater spread between depths in 2022.  
 
 ```{r daily min/max and avg water temp by day, echo=FALSE}
 #2020
@@ -192,15 +204,15 @@ ggplot(temp_mma, aes(month,  avg_temp, color = factor(year))) +
                        guide = guide_legend(reverse = TRUE)) +
     scale_x_continuous(breaks = 1:12) + 
     labs(x = "Month", y = "Temperature (c)") +
-    ggtitle("Average of Water Temperature") 
+    ggtitle("Average Water Temperature by Year") 
 
 
 ggplot(temp_mma, aes(date, avg_temp, color = factor(depth_m))) +
   geom_smooth(se=FALSE) +
-  labs(x = "Time",
+  labs(x = "Year",
        y = "Temperature (c)",
        color = "Depth (m)",
-       title = "Average Water Temperature")
+       title = "Average Water Temperature by Depth")
 
 
 ggplot(temp_mma, aes(factor(depth_m), avg_temp, color = site)) +
@@ -208,13 +220,13 @@ ggplot(temp_mma, aes(factor(depth_m), avg_temp, color = site)) +
   labs(x = "Depth (m)",
        y = "Temperature (c)",
        color = "Site",
-       title = "Average Water Temperature")
+       title = "Average Water Temperature by Depth & Location")
 ```
 
 
 Below is a summary of the data collected by location.  Of all the sites, STINAPA collected the most data from Klein Bonaire 1.  Of all the depths, the most data was collected at 12 meters.  Finally, the most data collected for a specific location (site and depth) was from Klein Bonaire 1 at 20 meters.
 
-The histogram indicates that the data is multi-modal.  Also, no one site appears to be significantly skewed in temperature.  
+The histogram indicates that the data is multi-modal.  This is logical as the observations reflect seasonal data.  Changes between summer and winter create a bi-modal distribution of temperatures.  
 
 
 ```{r reviewing data by site and depth, echo=FALSE}
@@ -230,13 +242,13 @@ temp_mma %>% filter(depth_m == 12) %>%
   facet_wrap(vars(site)) + 
   labs(x = "Temperature (c)", 
        y = "Observations",
-       fill = "Site")
+       fill = "Site",
+       title = "Observations Collected by Temperature & Location")
 ```
 
+### Low Temperature Outliers
 
-
-Below are tables of the lowest temperatures for each year.  From the *Temperature Variations* plots above, it is apparent that 2020 and 2022 had isolated low temperature events while the recorded temperatures in October 2021 were more graduated.
-It is interesting that the isolated low temperature events in 2022 were all recorded at six meters.  No significant low temperatures were recorded at lower depths.  
+The plots above indicate a number of observations with temperatures below the first quartile.  The tables below list the lowest temperature observations for each year. It is notable that the isolated low temperature events in 2022 were all recorded at six meters.  No significant low temperatures were recorded at lower depths.  
 
 ```{r review of low outliers, echo=FALSE}
 
@@ -271,13 +283,13 @@ temp22mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
   nice_table(title = "2022 Temperature Observations Below 23 Degrees (c)")
 ```
 
-### Trend Modeling
+## Model Developement
 
-I made the decision to use the data collected from 20 meters from for my time series model.  By isolating my model to one location and one depth, I hope to create a more accurate model than if I were to assume all the data collected followed the same trend, regardless of depth.  Additionally, the Harbour Village data has few outliers in either direction over the three years of data collection.
+I made the decision to use the data collected from 20 meters from for the time series model.  By isolating the model to one depth, I hope to create a more accurate model than if I were to assume all the data followed one trend, regardless of depth.  
 
-Below, is the distribution of temperatures.  Once the maximum, average, and minimum temperatures are separated, a clear bi-modal distribution is visible.  Variation in the QQ-Plot also confirms the data is not normally distributed.  
+Below is the distribution of temperatures.  Once the maximum, average, and minimum temperatures are separated, a clear bi-modal distribution is visible.  Variation in the QQ-Plot also confirms the data is not normally distributed.  
 
-Future modeling includes a seasonality component to acknowledge the distribution. 
+Future modeling must include a seasonality component to account for the distribution. 
 
 ```{r model prep- filtering to 12m}
 # Below, filtering 12 meters from all sites, then averaging each day's data.
@@ -285,6 +297,7 @@ temp_20m <- temp_mma %>%
   filter(depth_m == 20) %>%
   group_by(date)
 
+       
 # Below, filtering for dates and avg. temps
 avgTemp20m <- temp_20m %>%
   summarize(avg_temp = mean(avg_temp)) %>%
@@ -303,17 +316,17 @@ temp_20m %>% pivot_longer('min_temp':'max_temp',
     labs(x = "Temperature (c)", 
          y = "Observations", 
          fill = "Daily Temperature",
-         title = "Distribution of Temperatures at 12 Meters") +
+         title = "Distribution of Temperatures at 20 Meters") +
     theme(legend.position = c(0.85, 0.8))
 
 # QQ plot.  
 qqnorm(avgTemp20m$avg_temp, main = "QQ-plot")
 qqline(avgTemp20m$avg_temp, col = "red")
 ```
+### Missing Data
 
-
-An important factor in time series analysis is the continuity of time.  Using the statNA function from the *imputeTS* package, I determine that 197 observations are missing from the timeline.  This represents a significant proportion of the data set (19.7%).  Unfortunately, filtering the original data set for temperature records at 6 meters or 20 meters yields a greater percentage of missing observations.  In an effort to minimize 
-The plots below indicate that the data is missing at random.  Imputation must be used to complete the dataset as reducing the site of dataset would remove a full year of seasonal trends.....
+An important factor in time series analysis is the continuity of time.  Using the statNA function from the *imputeTS* package, I determine that 220 observations (days) are missing from the timeline.  This represents a significant proportion of the data set (22%).  
+The plots below indicate that the data is missing at random.  Imputation must be used to complete the data set as reducing the length of data set would not yield a complete year by which to model seasonal trends.
 
 ```{r modeling prep for NAs}
 # Populating complete date series
@@ -328,14 +341,14 @@ statsNA(avgTemp20_full$avg_temp)
 
 ggplot(avgTemp20_full, aes(date, avg_temp)) +
   geom_line(color = "blue4") +
-  labs(x="Date",
+  labs(x="Days",
        y="Average Temperature (c)",
-       title="Visualizing Missing Data")
+       title="Visualizing Missing Data by Day")
 
 ```
 
 
-In order to minimize the amount of imputation needed, I have aggregated the data into weekly temperature averages.  This reduces the percentage of missing data.  Additionally, the weekly segments yields a more manageable data set for seasonal differencing.
+In order to minimize the amount of imputation needed, I aggregate the data into weekly temperature averages.  This reduces the percentage of missing data to 15.2% (22 weeks).  Additionally, the weekly averages yield a more manageable data set for future seasonal differencing.  Below is a plot of missing data by week.
 
 ```{r Modeling Prep- Aggregating into weekly data}
 #Aggregating into weekly averages to minimize imputation needs.
@@ -359,11 +372,13 @@ statsNA(avgTemp20_weekly$wk_temp)
 timeseries <- ts(avgTemp20_weekly$wk_temp)
 
 ggplot_na_distribution(timeseries) +
-  labs(y="Temperature (c)")
+  labs(x="Weeks", y="Temperature (c)", subtitle = "Weekly averages with highlighted missing regions")
 ```
+### Imputation
 
+There are various imputation strategies.  The use of random, mean, or last-observed-carried-forward imputation were ruled out due to the seasonal nature of the data.  Seasonally Split, and Seasonally Decomposed imputation methods are provided below.  
 
-There are various imputation strategies.  The use of random, mean, or last-observed-carried-forward imputation were ruled out due to the seasonal nature of the data.  Linear, seasonally split, and seasonally decomposed imputation are modeled below.  Linear modeling is the simplest method, but appears overly simplistic.  The seasonal split method separates the data into seasons before imputing missing values base on each season.  This method adds dimension, but it is apparent that some imputations are based on micro trends from surrounding years that diverge from the immediate slope.  This is a likely due to the smaller size of data set.  Seasonally decomposed imputation removes the seasonal trends of the data set, imputes values based on the static series, then reintroduces the seasonal trend.  When applied to the current data set, this method applies dimensionality while following a more direct path between actual values.
+The Seasonally Split method separates the data into seasons before imputing missing values for each season.  This method adds dimension, but it is apparent that some imputations are based on micro trends of adjacent years and diverge from the seasonal slope.  The Seasonally Decomposed imputation method removes the seasonal trends of the data set, imputes values based on the de-trended static time series, then reintroduces the seasonal trends.  When applied to the data set, this method applies dimensionality while following a more direct slope between known values than the seasonal split method.  Therefore, I selected Seasonally Decomposed imputation for this model.
 
 
 ```{r model prep, imputing missing values}
@@ -371,23 +386,23 @@ There are various imputation strategies.  The use of random, mean, or last-obser
 #kalman <- na_kalman(timeseries, model = "auto.arima")
 #locf <- na_locf(timeseries, na_remaining = "rev")
 #ma <- na_ma(timeseries, k=4, weighting="exponential")
-interpolation <- na_interpolation(timeseries, option = "linear")
+#interpolation <- na_interpolation(timeseries, option = "linear")
 seasplit <- na_seasplit(timeseries, algorithm = "ma", find_frequency = TRUE)
 seadec <- na_seadec(timeseries, algorithm = "interpolation", find_frequency = TRUE)
 
 #ggplot_na_imputations(timeseries, kalman)
 #ggplot_na_imputations(timeseries, locf)
 #ggplot_na_imputations(timeseries, ma)
-ggplot_na_imputations(timeseries,interpolation, title = "Linear Interpolation")
+#ggplot_na_imputations(timeseries,interpolation, title = "Linear Interpolation")
 ggplot_na_imputations(timeseries, seasplit, title = "Seasonally Split Interpolation")
 ggplot_na_imputations(timeseries, seadec, title = "Seasonally Decomposed Interpolation")
 
 ```
+#### SARIMA Model
 
+To model seasonal time series trends, I use a Seasonal Autoregressive Integrated Moving Average (SARIMA) model.
 
-Using ....Autoregressive Integrated Moving Average (ARIMA)
 ```{r time series model 1}
-
 ts_complete <- seadec
 
 # Below, ploting time series and de-trended time series.
@@ -429,7 +444,6 @@ pred <- sarima.for(train, n.ahead = new_values, p=2,d=0,q=1,P=0,D=0,Q=1,S=26,
                    main="Water Temperature Predictions",
                    xlab="Weeks")
 lines(test)
-
 
 
 #RMSE sqrt(mean((pred$pred - test)^2))
