@@ -389,8 +389,6 @@ Using ....Autoregressive Integrated Moving Average (ARIMA)
 ```{r time series model 1}
 
 ts_complete <- seadec
-train <- ts_complete[1:104]
-test <- ts_complete[105:length(ts_complete)]
 
 # Below, ploting time series and de-trended time series.
 par(mfrow = c(3,1))
@@ -398,52 +396,45 @@ plot(ts_complete)
 plot(diff(ts_complete))
 plot(diff(diff(ts_complete)))
 
-par(mfrow = c(3,1))
-ts.plot(train)
-ts.plot(diff(train))
-ts.plot(diff(diff(train)))
 
 # Process
-# 1. save diff(diff(timeseries), lag = 52) to remove trends and make stationary.
+# 1. save diff(diff(timeseries)) to remove trends and make stationary.
 # 2. plot standardized object.
 # 3. run acf2() to compare lag drop offs or tails between acf vs pacf(). 
-#.      tailing acf suggests AR model (x,1,0,0); tailing pacf suggests MA model (x,0,0,1.  both suggests ARMA model (x,1,0,1)
+#      tailing acf suggests AR model (x,1,0,0); tailing pacf suggests MA model (x,0,0,1.  both suggests ARMA model (x,1,0,1)
 
 # Below, plotting auto correlation and partial auto correlation.
-diff1 <- diff(ts_complete)
-diff2 <- diff(diff1)
-par(mfrow = c(2,1))
-acf2(diff2)
+diff1 <- diff(diff(ts_complete))
+acf2(diff1)
 
-traindiff <- diff(train, lag=52)
-traindiff2 <- diff(train)
-par(mfrow = c(2,1))
-acf2(traindiff, max.lag = 50)
 ```
 
 
 
 ```{r modeling and tuning}
-
 # Use sarima() from astsa package for multi-plot of ts model.
 #sarima(ts_complete, p,d,q, P,D,Q, S)
 
-#best model for train data
-trainmod <- sarima(train, p=1,d=1,q=2,P=1,D=1,Q=0,S=27)
-trainmod
-
-
-#best model for complete data set
-model <- sarima(ts_complete, p=2,d=1,q=2,P=0,D=1,Q=1,S=6)
+# best model for complete data set
+# AIC = 0.373
+# p=2,d=0,q=1,P=0,D=0,Q=1,S=26
+model <- sarima(ts_complete, p=2,d=0,q=1,P=0,D=0,Q=1,S=26)
 model
 
-# Forcasting
-# use sarima.for(ts_complete, n.ahead = number of periods to forcase, 1,1,1). Last args match model params.
+#visualizing accuracy
+train  <- window(ts_complete, end = round(length(ts_complete)*0.9, 0)) # 90% of data
+test <- window(ts_complete, end = length(ts_complete))
+new_values <- 45
+pred <- sarima.for(train, n.ahead = new_values, p=2,d=0,q=1,P=0,D=0,Q=1,S=26, 
+                   main="Water Temperature Predictions",
+                   xlab="Weeks")
+lines(test)
 
-pred <- sarima.for(train, n.ahead=length(test), p=1,d=1,q=2,P=1,D=1,Q=0,S=27)
 
-#RMSE
-sqrt(mean((pred$pred - test)^2))
+
+#RMSE sqrt(mean((pred$pred - test)^2))
+rmse <- sqrt(mean((pred$pred[1:(length(test) - length(train))] - tail(test, n=length(test) - length(train)))^2))
+print(paste("The RMSE for this SARIMA model is ", round(rmse, 4)))
 ```
 
 
