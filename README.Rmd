@@ -193,7 +193,7 @@ temp_mma <- temp20mm %>%
   mutate(year = year(date),
          month = month(date))
 
-# pander::pander(summary(temp_mma))
+pander::pander(summary(temp_mma))
 ```
 
 
