@@ -2,7 +2,7 @@
 title: "Analysis of Water Temperature Trends With ARIMA"
 subtitle: "A Collaboration with STINAPA"
 author: "Tadge McWilliams"
-date: "July 30th, 2023"
+date: "August 1st, 2023"
 output: 
   html_document:
     toc: TRUE
@@ -10,7 +10,7 @@ output:
       collapsed: FALSE
 ---
 
-```{r loading packages, echo=FALSE}
+```{r loading packages, echo=FALSE, include=FALSE}
 library(knitr) #global settings
 library(readxl)
 library(tidyverse) 
@@ -37,20 +37,24 @@ tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
 ![](/Users/tadgemcwilliams/Documents/Data Science/STINAPA/STINAPA/Joanne's Sunchi1.jpg)
 
 ## Summary
-...summary of data, analysis, methods, and findings.
+The goal of this project is to assist [Stichting Nationale Parken Bonaire](https://stinapabonaire.org) (STINAPA) in their review and analysis of water temperature data collected between 2020 and 2022.  Special consideration is given to temperature outliers.  Values deemed to be impossible water temperatures have been removed while low temperature outliers have been retained.  Missing data has been interpolated using seasonally decomposed imputation.  The resulting data set is used to develop an Autoregressive Integrated Moving Average (ARIMA) model by which to generate seasonal temperature predictions with confidence intervals.  
 
-## Data Collected
-The data provided was collected during 2020 through 2022 by Stichting Nationale Parken Bonaire (STINAPA) using HOBO temperature and light data loggers.  Data loggers were place in four locations and at three depths per location.  Each data logger recorded a temperature observation every five minutes.  Each weeks, data was collected and the HOBO data loggers were cleaned by STINAPA. In total, there are **1,932,026 observations**.  Each observation was recorded with the following variables:
+The documented effects of climate change have the potential to alter the underwater ecosystem in considerable ways.  While more analysis is needed, I hope this project will lead to the analysis of temperature shifts and the development of future models from which STINAPA and others can further their work.
+
+## Methodology
+
+This analysis is based on a series of aggregations and transformations of the data provided.  All calculations and visualizations are performed using R. R packages for this project include knitr, readxl, tidyverse, lubridate, flextable, rempsyc, asta, imputeTS, and forecast. The report is formatted in Markdown, and all versions have been pushed to a github repository.
+
+### Data Collection
+The data provided was collected during 2020 through 2022 by STINAPA using HOBO temperature and light data loggers.  Data loggers were place in four locations and at three depths per location.  Each data logger recorded a temperature observation every five minutes.  Each weeks, data was collected and the HOBO data loggers were cleaned by STINAPA. In total, there are **1,932,026 observations**.  Each observation was recorded with the following variables:
 
 * **date:** Date observation was collected (Y-M-D).
 * **time:** Time observation was collected (H-M-S).
 * **temp_c:** Temperature recorded in celcius.
 * **sensor_id:** Serial number of HOBO data logger. 
-* **site:** Location of datalogger.
+* **site:** Location of data logger.
 * **depth_m:** The depth of the data logger in meters.
 
-## Methodology
-...how was data handeled. what formuli were used.  what past work was used
 
 ### Data Cleaning
 
@@ -65,12 +69,6 @@ In consulting Erik Meesters, Tropical Marine Ecologist and Bio Statistician at W
 [^1]: E. Meesters, personal communication, March 16th, 2023.
 
 ```{r 2020 outliers}
-#ggplot(tl2020, aes(temp_c)) +
-#  geom_bar(width = 0.1) + 
-#  facet_wrap(~depth_m) +
-#  xlab("Temperature (c)") +
-#  ylab("Observations") +
-#  ggtitle("2020 Distribution by Sensor Depth (m)")
 
 quant2020 <- quantile(tl2020$temp_c, probs = c(0.25, 0.75))
 statoutlier2020 <- (IQR(tl2020$temp_c) * 1.5) + quant2020[2]
@@ -150,7 +148,7 @@ tl2022_33$date <- as.Date(tl2022_33$date)
 tl2022_33$time <- strftime(tl2022_33$time, format="%H:%M:%S")
 ```
 
-  
+
 ## Data Analysis
 
 ### Summary Statistics
@@ -206,7 +204,7 @@ temp_mma %>%
          "Mean" = avg.temp,
          "Maximum" = max.temp,
          "Range" = range,
-         "Degrees Above Mean" = high_above_avg) %>%
+         "High Above Mean" = high_above_avg) %>%
   nice_table(title = "2020 Temperature Summary Statistics") %>%
   colformat_num(digits = 1)
 
@@ -224,7 +222,7 @@ temp_mma %>%
          "Mean" = avg.temp,
          "Maximum" = max.temp,
          "Range" = range,
-         "Degrees Above Mean" = high_above_avg) %>%
+         "High Above Mean" = high_above_avg) %>%
   nice_table(title = "2021 Temperature Summary Statistics") %>%
   colformat_num(digits = 1)
 
@@ -242,7 +240,7 @@ temp_mma %>%
          "Mean" = avg.temp,
          "Maximum" = max.temp,
          "Range" = range,
-         "Degrees Above Mean" = high_above_avg) %>%
+         "High Above Mean" = high_above_avg) %>%
   nice_table(title = "2022 Temperature Summary Statistics") %>%
   colformat_num(digits = 1)
 
