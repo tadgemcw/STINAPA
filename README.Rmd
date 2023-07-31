@@ -449,7 +449,7 @@ ggplot_na_imputations(timeseries, seadec, title = "Seasonally Decomposed Interpo
 
 ### ARIMA Model Tuning
 
-To model time series trends, I use a Autoregressive Integrated Moving Average (ARIMA) model. After differencing the time series to remove trends with a 52 week lag, I apply an auto-correlation function to view the correlations by time series lag.  The tailing ACF and dropoff in Partial ACF suggest that the ARIMA model will include a autoregressive component.  The presence of the Partial ACF correlation at lag 12 suggests that the model should include a moving average component as well. 
+To model time series trends, I use an Autoregressive Integrated Moving Average (ARIMA) model. After differencing the time series with a 52 week lag to remove trends, I apply an auto-correlation function to view correlation coefficients by time series lag.  The tailing ACF and dropoff in Partial ACF suggest that the ARIMA model should include a autoregressive component.  The presence of the significant Partial ACF coeffcient at lag 12 suggests that the model should also include a moving average component.
 
 ```{r time series model 1}
 ts_complete <- seadec
@@ -471,9 +471,9 @@ ts_complete %>% diff(lag=52) %>% acf2(max.lag = 52)
 
 ```
 
-I calculate a basic ARIMA model using the *auto.arima()* function.  In agreement with the ACF calculations, the suggested model is an ARIMA(2,0,1) model with two autoregressive components and one moving average component.  The p-value for all components is zero.  Also, the plot suggests that the residual values follow a white noise pattern, indicating a well fitting model.
+I calculate a basic ARIMA model using the *auto.arima* function.  In agreement with the ACF calculations, the suggested model is an ARIMA(2,0,1) model with two autoregressive components and one moving average component.  The p-value for all components is zero.  Also, the plot suggests that the residual values follow a white noise pattern, indicating a good fit.
 
-Surprisingly, the auto.arima() function did not select a seasonal component.  Below the ARIMA(2,0,1) model results, I manually fit a seasonal ARIMA model (SARIMA) in an effort to find a more efficient model.  While a SARIMA(2,0,1)(0,0,1){26} model comes quite close in AIC to the ARIMA(2,0,1) model, the ARIMA model is marginally more accurate on this data set.  It is possible that annual trends are not significant in this data set due to the number of years included in the data set.  The ARIMA(2,0,1) model is most significant for this data set; however, it would be wise to reconsider the SARIMA(2,0,1)(0,0,1){26} model if data set were expanded to include additional years. 
+Surprisingly, the auto.arima function did not return a seasonal component.  Below the ARIMA(2,0,1) results, I manually fit a seasonal ARIMA model (SARIMA) in an effort to improve accuracy.  While a SARIMA(2,0,1)(0,0,1)[26] model comes yields a similar Akaike's Information Criterion (AIC) score to the ARIMA(2,0,1) model, the ARIMA model is marginally more accurate.  It is possible that annual trends are not significant for this data set due to the number of years included.  Thus, the ARIMA(2,0,1) model is the most accurate; however, it would be wise to reconsider the SARIMA(2,0,1)(0,0,1){26} model if the data set were expanded.
 
 
 ```{r modeling and tuning}
@@ -491,7 +491,7 @@ sarima(ts_complete, p=2,d=0,q=1,P=0,D=0,Q=1,S=26)
 
 ### Model Predictions
 
-Below, the both models are trained on 90% of the time series then used to predict the remaining 10% of the known temperature values.  When the estimated values are compared with the actual values, the both models appear to fit well.  Additionally, the seasonal model has a marginally smaller root-mean-square-error (RMSE) than the non-seasonal model.
+Below, both models are trained on 90% of the time series, then used to predict the remaining 10% of the known values.  When the estimated values are compared with the actual values, the both models appear to fit well.  Additionally, the seasonal model has a marginally smaller root-mean-square-error (RMSE) than the non-seasonal model.
 
 
 ```{r arima model predictions}
