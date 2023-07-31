@@ -155,8 +155,7 @@ tl2022_33$time <- strftime(tl2022_33$time, format="%H:%M:%S")
 
 ### Summary Statistics
 
-I aggregated the data by date, then filtered for the daily minimum, maximum, and average temperatures.  
-Average temperatures during 2021 were lower in many months in in 2020 or 2022.  Review of average temperatures by depth indicate a significant decrease in temperature at six meters during 2021 and a greater spread between depths in 2022.  
+I aggregated the data by date, then filtered for the daily minimum, maximum, and average temperatures.  From 2020 through 2022, there is an increase in the temperature difference between the monthly high temperature and the monthly mean.  Average temperatures during 2021 were lower in many months in in 2020 or 2022.  Review of average temperatures by depth indicate a significant decrease in temperature at six meters during 2021 and a greater spread between depths in 2022.  
 
 ```{r daily min/max and avg water temp by day}
 #2020
@@ -193,8 +192,62 @@ temp_mma <- temp20mm %>%
   mutate(year = year(date),
          month = month(date))
 
-pander::pander(summary(temp_mma))
+#Below, 2020 summary stats.
+temp_mma %>% 
+  filter(year == 2020) %>%
+  group_by(factor(months(date), level = month.name)) %>%
+  summarize(min.temp = round(min(min_temp),2),
+            avg.temp = round(mean(avg_temp),2),
+            max.temp = round(max(max_temp),2),
+            range = round(max.temp - min.temp, 2),
+            high_above_avg = round(max.temp - avg.temp, 2)) %>%
+  rename("Month" = "factor(months(date), level = month.name)",
+         "Minimum" = min.temp,
+         "Mean" = avg.temp,
+         "Maximum" = max.temp,
+         "Range" = range,
+         "Degrees Above Mean" = high_above_avg) %>%
+  nice_table(title = "2020 Temperature Summary Statistics") %>%
+  colformat_num(digits = 1)
+
+#Below, 2021 summary stats.
+temp_mma %>% 
+  filter(year == 2021) %>%
+  group_by(factor(months(date), level = month.name)) %>%
+  summarize(min.temp = round(min(min_temp),2),
+            avg.temp = round(mean(avg_temp),2),
+            max.temp = round(max(max_temp),2),
+            range = round(max.temp - min.temp, 2),
+            high_above_avg = round(max.temp - avg.temp, 2)) %>%
+  rename("Month" = "factor(months(date), level = month.name)",
+         "Minimum" = min.temp,
+         "Mean" = avg.temp,
+         "Maximum" = max.temp,
+         "Range" = range,
+         "Degrees Above Mean" = high_above_avg) %>%
+  nice_table(title = "2021 Temperature Summary Statistics") %>%
+  colformat_num(digits = 1)
+
+#Below, 2022 summary stats.
+temp_mma %>% 
+  filter(year == 2022) %>%
+  group_by(factor(months(date), level = month.name)) %>%
+  summarize(min.temp = round(min(min_temp),2),
+            avg.temp = round(mean(avg_temp),2),
+            max.temp = round(max(max_temp),2),
+            range = round(max.temp - min.temp, 2),
+            high_above_avg = round(max.temp - avg.temp, 2)) %>%
+  rename("Month" = "factor(months(date), level = month.name)",
+         "Minimum" = min.temp,
+         "Mean" = avg.temp,
+         "Maximum" = max.temp,
+         "Range" = range,
+         "Degrees Above Mean" = high_above_avg) %>%
+  nice_table(title = "2022 Temperature Summary Statistics") %>%
+  colformat_num(digits = 1)
+
 ```
+
 
 
 ```{r visualizing general temperature trends}
