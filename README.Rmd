@@ -204,7 +204,7 @@ temp_mma %>%
          "Mean" = avg.temp,
          "Maximum" = max.temp,
          "Range" = range,
-         "High Above Mean" = high_above_avg) %>%
+         "Max From Mean" = high_above_avg) %>%
   nice_table(title = "2020 Temperature Summary Statistics") %>%
   colformat_num(digits = 1)
 
@@ -222,7 +222,7 @@ temp_mma %>%
          "Mean" = avg.temp,
          "Maximum" = max.temp,
          "Range" = range,
-         "High Above Mean" = high_above_avg) %>%
+         "Max From Mean" = high_above_avg) %>%
   nice_table(title = "2021 Temperature Summary Statistics") %>%
   colformat_num(digits = 1)
 
@@ -240,7 +240,7 @@ temp_mma %>%
          "Mean" = avg.temp,
          "Maximum" = max.temp,
          "Range" = range,
-         "High Above Mean" = high_above_avg) %>%
+         "Max From Mean" = high_above_avg) %>%
   nice_table(title = "2022 Temperature Summary Statistics") %>%
   colformat_num(digits = 1)
 
