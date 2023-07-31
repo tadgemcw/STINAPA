@@ -1,5 +1,5 @@
 ---
-title: "Analysis of Water Temperature Trends Using SARIMA"
+title: "Analysis of Water Temperature Trends With ARIMA"
 subtitle: "A Collaboration with STINAPA"
 author: "Tadge McWilliams"
 date: "July 30th, 2023"
@@ -10,7 +10,7 @@ output:
       collapsed: FALSE
 ---
 
-```{r loading packages, include=FALSE, echo=FALSE}
+```{r loading packages, echo=FALSE}
 library(knitr) #global settings
 library(readxl)
 library(tidyverse) 
@@ -19,14 +19,15 @@ library(flextable) #for nice table
 library(rempsyc) #for nice table
 library(astsa) #for time series modeling and plotting
 library(imputeTS) #for imputing missing time series data
+library(forecast) #for auto.arima
 ```
 
 ```{r global settings, setup, include=FALSE}
-opts_chunk$set(echo = TRUE, message = FALSE)
+opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 
-```{r loading data, echo=FALSE, warning=FALSE}
+```{r loading data}
 setwd("~/Documents/Data Science/STINAPA/Temp & Light Project")
 tl2020 <- read_excel("2020 raw.xlsx", sheet = 1)
 tl2021 <- read_excel("2021 raw.xlsx", sheet = 1)
@@ -41,12 +42,12 @@ tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
 ## Data Collected
 The data provided was collected during 2020 through 2022 by Stichting Nationale Parken Bonaire (STINAPA) using HOBO temperature and light data loggers.  Data loggers were place in four locations and at three depths per location.  Each data logger recorded a temperature observation every five minutes.  Each weeks, data was collected and the HOBO data loggers were cleaned by STINAPA. In total, there are **1,932,026 observations**.  Each observation was recorded with the following variables:
 
-**date:** Date observation was collected (Y-M-D).
-**time:** Time observation was collected (H-M-S).
-**temp_c:** Temperature recorded in celcius.
-**sensor_id:** Serial number of HOBO data logger. 
-**site:** Location of datalogger.
-**depth_m:** The depth of the data logger in meters.
+* **date:** Date observation was collected (Y-M-D).
+* **time:** Time observation was collected (H-M-S).
+* **temp_c:** Temperature recorded in celcius.
+* **sensor_id:** Serial number of HOBO data logger. 
+* **site:** Location of datalogger.
+* **depth_m:** The depth of the data logger in meters.
 
 ## Methodology
 ...how was data handeled. what formuli were used.  what past work was used
@@ -63,7 +64,7 @@ In consulting Erik Meesters, Tropical Marine Ecologist and Bio Statistician at W
 
 [^1]: E. Meesters, personal communication, March 16th, 2023.
 
-```{r 2020 outliers, echo=FALSE, warning=FALSE}
+```{r 2020 outliers}
 #ggplot(tl2020, aes(temp_c)) +
 #  geom_bar(width = 0.1) + 
 #  facet_wrap(~depth_m) +
@@ -86,7 +87,7 @@ ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) +
 ```
 
 
-```{r 2021 outliers, echo=FALSE, warning=FALSE}
+```{r 2021 outliers}
 #ggplot(tl2021, aes(temp_c)) +
 #  geom_bar(width = 0.1) + 
 #  facet_wrap(~depth_m) +
@@ -109,7 +110,7 @@ ggplot(tl2021, aes(x=factor(month(date)), y = temp_c)) +
 ```
 
 
-```{r 2022 outliers, echo=FALSE, warning=FALSE}
+```{r 2022 outliers}
 #ggplot(tl2022, aes(temp_c)) +
 #  geom_bar(width = 0.1) + 
 #  facet_wrap(~depth_m) +
@@ -131,14 +132,14 @@ ggplot(tl2022, aes(x=factor(month(date)), y = temp_c)) +
     theme(legend.title=element_blank())
 ```
 
-```{r removing outliers above 33 degrees, echo=FALSE}
+```{r removing outliers above 33 degrees}
 tl2020_33 <- tl2020 %>% filter(temp_c <= 33)
 tl2021_33 <- tl2021 %>% filter(temp_c <= 33)
 tl2022_33 <- tl2022 %>% filter(temp_c <= 33)
 ```
 
 
-```{r formatting date and time columns, echo=FALSE}
+```{r formatting date and time columns}
 tl2020_33$date <- as.Date(tl2020_33$date)
 tl2020_33$time <- strftime(tl2020_33$time, format="%H:%M:%S")
 
@@ -149,15 +150,15 @@ tl2022_33$date <- as.Date(tl2022_33$date)
 tl2022_33$time <- strftime(tl2022_33$time, format="%H:%M:%S")
 ```
 
-## EDA?
-  Looks at summary stats?
   
 ## Data Analysis
+
+### Summary Statistics
 
 I aggregated the data by date, then filtered for the daily minimum, maximum, and average temperatures.  
 Average temperatures during 2021 were lower in many months in in 2020 or 2022.  Review of average temperatures by depth indicate a significant decrease in temperature at six meters during 2021 and a greater spread between depths in 2022.  
 
-```{r daily min/max and avg water temp by day, echo=FALSE}
+```{r daily min/max and avg water temp by day}
 #2020
 temp20mm <- tl2020_33 %>% 
   select(date, site, depth_m, temp_c) %>%
@@ -192,10 +193,11 @@ temp_mma <- temp20mm %>%
   mutate(year = year(date),
          month = month(date))
 
+# pander::pander(summary(temp_mma))
 ```
 
 
-```{r visualizing general temperature trends, echo=FALSE}
+```{r visualizing general temperature trends}
 ggplot(temp_mma, aes(month,  avg_temp, color = factor(year))) +
   geom_smooth(se=FALSE, span = 0.05) +
   scale_color_manual(name = "Year", 
@@ -226,10 +228,10 @@ ggplot(temp_mma, aes(factor(depth_m), avg_temp, color = site)) +
 
 Below is a summary of the data collected by location.  Of all the sites, STINAPA collected the most data from Klein Bonaire 1.  Of all the depths, the most data was collected at 12 meters.  Finally, the most data collected for a specific location (site and depth) was from Klein Bonaire 1 at 20 meters.
 
-The histogram indicates that the data is multi-modal.  This is logical as the observations reflect seasonal data.  Changes between summer and winter create a bi-modal distribution of temperatures.  
+The histogram indicates that the data is multi-modal.  This is logical as the observations reflect seasonal data.  Changes between summer and winter create a multi-modal distribution of temperatures.  
 
 
-```{r reviewing data by site and depth, echo=FALSE}
+```{r reviewing data by site and depth}
 
 table(temp_mma$site, temp_mma$depth_m) 
 table(temp_mma$site, temp_mma$depth_m) %>% rowSums() 
@@ -250,7 +252,7 @@ temp_mma %>% filter(depth_m == 12) %>%
 
 The plots above indicate a number of observations with temperatures below the first quartile.  The tables below list the lowest temperature observations for each year. It is notable that the isolated low temperature events in 2022 were all recorded at six meters.  No significant low temperatures were recorded at lower depths.  
 
-```{r review of low outliers, echo=FALSE}
+```{r review of low outliers}
 
 # 2020 low temp outliers
 temp20mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
@@ -339,12 +341,6 @@ avgTemp20_full <- avgTemp20m %>%
 # Reviewing NAs by missing days.
 statsNA(avgTemp20_full$avg_temp)
 
-ggplot(avgTemp20_full, aes(date, avg_temp)) +
-  geom_line(color = "blue4") +
-  labs(x="Days",
-       y="Average Temperature (c)",
-       title="Visualizing Missing Data by Day")
-
 ```
 
 
@@ -374,6 +370,7 @@ timeseries <- ts(avgTemp20_weekly$wk_temp)
 ggplot_na_distribution(timeseries) +
   labs(x="Weeks", y="Temperature (c)", subtitle = "Weekly averages with highlighted missing regions")
 ```
+
 ### Imputation
 
 There are various imputation strategies.  The use of random, mean, or last-observed-carried-forward imputation were ruled out due to the seasonal nature of the data.  Seasonally Split, and Seasonally Decomposed imputation methods are provided below.  
@@ -398,9 +395,10 @@ ggplot_na_imputations(timeseries, seasplit, title = "Seasonally Split Interpolat
 ggplot_na_imputations(timeseries, seadec, title = "Seasonally Decomposed Interpolation")
 
 ```
-#### SARIMA Model
 
-To model seasonal time series trends, I use a Seasonal Autoregressive Integrated Moving Average (SARIMA) model.
+### ARIMA Model Tuning
+
+To model time series trends, I use a Autoregressive Integrated Moving Average (ARIMA) model. After differencing the time series to remove trends with a 52 week lag, I apply an auto-correlation function to view the correlations by time series lag.  The tailing ACF and dropoff in Partial ACF suggest that the ARIMA model will include a autoregressive component.  The presence of the Partial ACF correlation at lag 12 suggests that the model should include a moving average component as well. 
 
 ```{r time series model 1}
 ts_complete <- seadec
@@ -408,9 +406,8 @@ ts_complete <- seadec
 # Below, ploting time series and de-trended time series.
 par(mfrow = c(3,1))
 plot(ts_complete)
-plot(diff(ts_complete))
-plot(diff(diff(ts_complete)))
-
+plot(diff(ts_complete, lag = 52))
+plot(diff(diff(ts_complete, lag = 52)))
 
 # Process
 # 1. save diff(diff(timeseries)) to remove trends and make stationary.
@@ -419,36 +416,61 @@ plot(diff(diff(ts_complete)))
 #      tailing acf suggests AR model (x,1,0,0); tailing pacf suggests MA model (x,0,0,1.  both suggests ARMA model (x,1,0,1)
 
 # Below, plotting auto correlation and partial auto correlation.
-diff1 <- diff(diff(ts_complete))
-acf2(diff1)
+ts_complete %>% diff(lag=52) %>% acf2(max.lag = 52)
 
 ```
 
+I calculate a basic ARIMA model using the *auto.arima()* function.  In agreement with the ACF calculations, the suggested model is an ARIMA(2,0,1) model with two autoregressive components and one moving average component.  The p-value for all components is zero.  Also, the plot suggests that the residual values follow a white noise pattern, indicating a well fitting model.
+
+Surprisingly, the auto.arima() function did not select a seasonal component.  Below the ARIMA(2,0,1) model results, I manually fit a seasonal ARIMA model (SARIMA) in an effort to find a more efficient model.  While a SARIMA(2,0,1)(0,0,1){26} model comes quite close in AIC to the ARIMA(2,0,1) model, the ARIMA model is marginally more accurate on this data set.  It is possible that annual trends are not significant in this data set due to the number of years included in the data set.  The ARIMA(2,0,1) model is most significant for this data set; however, it would be wise to reconsider the SARIMA(2,0,1)(0,0,1){26} model if data set were expanded to include additional years. 
 
 
 ```{r modeling and tuning}
 # Use sarima() from astsa package for multi-plot of ts model.
 #sarima(ts_complete, p,d,q, P,D,Q, S)
 
-# best model for complete data set
-# AIC = 0.373
-# p=2,d=0,q=1,P=0,D=0,Q=1,S=26
-model <- sarima(ts_complete, p=2,d=0,q=1,P=0,D=0,Q=1,S=26)
-model
+# Non-seasonal model with auto.arima from forecast package.
+auto.arima(ts_complete) 
+sarima(ts_complete, p=2, d=0, q=1)
 
-#visualizing accuracy
+# seasonal model
+sarima(ts_complete, p=2,d=0,q=1,P=0,D=0,Q=1,S=26)
+
+```
+
+### Model Predictions
+
+Below, the both models are trained on 90% of the time series then used to predict the remaining 10% of the known temperature values.  When the estimated values are compared with the actual values, the both models appear to fit well.  Additionally, the seasonal model has a marginally smaller root-mean-square-error (RMSE) than the non-seasonal model.
+
+
+```{r arima model predictions}
+
+#visualizing ARIMA(2,0,1) accuracy
 train  <- window(ts_complete, end = round(length(ts_complete)*0.9, 0)) # 90% of data
 test <- window(ts_complete, end = length(ts_complete))
-new_values <- 45
-pred <- sarima.for(train, n.ahead = new_values, p=2,d=0,q=1,P=0,D=0,Q=1,S=26, 
-                   main="Water Temperature Predictions",
+new_values <- 52
+pred <- sarima.for(train, n.ahead = new_values, p=2,d=0,q=1, 
+                   main="ARIMA(2,0,1) Temperature Predictions",
                    xlab="Weeks")
 lines(test)
 
-
 #RMSE sqrt(mean((pred$pred - test)^2))
 rmse <- sqrt(mean((pred$pred[1:(length(test) - length(train))] - tail(test, n=length(test) - length(train)))^2))
-print(paste("The RMSE for this SARIMA model is ", round(rmse, 4)))
-```
+print(paste("The RMSE for this ARIMA(2,0,1) model is ", round(rmse, 4)))
 
+
+
+#visualizing accuracy of SARIMA model
+strain  <- window(ts_complete, end = round(length(ts_complete)*0.9, 0)) # 90% of data
+stest <- window(ts_complete, end = length(ts_complete))
+new_values <- 52
+spred <- sarima.for(strain, n.ahead = new_values, p=2,d=0,q=1,P=0,D=0,Q=1,S=26, 
+                   main="SARIMA(2,0,1)(0,0,1)[26] Temperature Predictions",
+                   xlab="Weeks")
+lines(test)
+
+#RMSE sqrt(mean((pred$pred - test)^2))
+srmse <- sqrt(mean((spred$pred[1:(length(stest) - length(strain))] - tail(stest, n=length(stest) - length(strain)))^2))
+print(paste("The RMSE for this SARIMA(2,0,1)(0,0,1)[26] model is ", round(srmse, 4)))
+```
 
