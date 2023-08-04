@@ -525,3 +525,40 @@ srmse <- sqrt(mean((spred$pred[1:(length(stest) - length(strain))] - tail(stest,
 print(paste("The RMSE for this SARIMA(2,0,1)(0,0,1)[26] model is ", round(srmse, 4)))
 ```
 
+
+```{r other ML model predictions}
+library(caret)
+library(pROC)
+
+avgTemp20_full$full_temp <- na_seadec(avgTemp20_full$avg_temp, algorithm = "interpolation", find_frequency = TRUE)
+ggplot_na_imputations(avgTemp20_full$avg_temp, avgTemp20_full$full_temp, title = "Seasonally Decomposed Interpolation")
+
+split <- round(nrow(avgTemp20_full) * 0.90)
+mltrain <- avgTemp20_full[1:split, ]
+mltest <- avgTemp20_full[(split + 1) : nrow(avgTemp20_full), ]
+
+
+mlmodel <- train(full_temp ~ date + year + week,
+                 data = mltrain, 
+                 method = "gam",
+                 verbose = FALSE
+                
+               )
+
+ #close models: gam, 
+summary(mlmodel)
+
+predictions <- predict(mlmodel, mltest)
+
+accuracy(mltest$full_temp, predictions)
+
+
+ggplot(mltest, aes(x=date, y=full_temp)) +
+  geom_point() +
+  geom_point(aes(mltest$date, predictions), color = "red")
+
+ROC <- roc(mltest$full_temp, predictions)
+plot(ROC, col = "blue")
+auc(ROC) 
+```
+
