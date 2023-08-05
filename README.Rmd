@@ -20,6 +20,7 @@ library(rempsyc) #for nice table
 library(astsa) #for time series modeling and plotting
 library(imputeTS) #for imputing missing time series data
 library(forecast) #for auto.arima
+library(caret) #for ML modeling
 ```
 
 ```{r global settings, setup, include=FALSE}
@@ -43,7 +44,7 @@ The documented effects of climate change have the potential to alter the underwa
 
 ## Methodology
 
-This analysis is based on a series of aggregations and transformations of the data provided.  All calculations and visualizations are performed using R. R packages for this project include knitr, readxl, tidyverse, lubridate, flextable, rempsyc, asta, imputeTS, and forecast. The report is formatted in Markdown, and all versions have been pushed to a github repository.
+This analysis is based on a series of aggregations and transformations of the data provided.  All calculations and visualizations are performed using R. R packages for this project include knitr, readxl, tidyverse, lubridate, flextable, rempsyc, asta, imputeTS, forecast, and caret. The report is formatted in Markdown, and all versions have been pushed to a github repository.
 
 ### Data Collection
 The data provided was collected during 2020 through 2022 by STINAPA using HOBO temperature and light data loggers.  Data loggers were place in four locations and at three depths per location.  Each data logger recorded a temperature observation every five minutes.  Each weeks, data was collected and the HOBO data loggers were cleaned by STINAPA. In total, there are **1,932,026 observations**.  Each observation was recorded with the following variables:
@@ -416,9 +417,7 @@ avgTemp20_weekly <- avgTemp20_full %>%
 #Reviewing missing data from weekly averages
 statsNA(avgTemp20_weekly$wk_temp)
 
-timeseries <- ts(avgTemp20_weekly$wk_temp)
-
-ggplot_na_distribution(timeseries) +
+ggplot_na_distribution(avgTemp20_weekly$wk_temp) +
   labs(x="Weeks", y="Temperature (c)", subtitle = "Weekly averages with highlighted missing regions")
 ```
 
@@ -435,16 +434,18 @@ The Seasonally Split method separates the data into seasons before imputing miss
 #locf <- na_locf(timeseries, na_remaining = "rev")
 #ma <- na_ma(timeseries, k=4, weighting="exponential")
 #interpolation <- na_interpolation(timeseries, option = "linear")
-seasplit <- na_seasplit(timeseries, algorithm = "ma", find_frequency = TRUE)
-seadec <- na_seadec(timeseries, algorithm = "interpolation", find_frequency = TRUE)
+seasplit <- na_seasplit(avgTemp20_weekly$wk_temp, algorithm = "ma", find_frequency = TRUE)
+seadec <- na_seadec(avgTemp20_weekly$wk_temp, algorithm = "interpolation", find_frequency = TRUE)
 
 #ggplot_na_imputations(timeseries, kalman)
 #ggplot_na_imputations(timeseries, locf)
 #ggplot_na_imputations(timeseries, ma)
 #ggplot_na_imputations(timeseries,interpolation, title = "Linear Interpolation")
-ggplot_na_imputations(timeseries, seasplit, title = "Seasonally Split Interpolation")
-ggplot_na_imputations(timeseries, seadec, title = "Seasonally Decomposed Interpolation")
+ggplot_na_imputations(avgTemp20_weekly$wk_temp, seasplit, title = "Seasonally Split Interpolation")
+ggplot_na_imputations(avgTemp20_weekly$wk_temp, seadec, title = "Seasonally Decomposed Interpolation")
 
+CompleteWkTemp20 <- avgTemp20_weekly[,-3]
+ts_complete <- ts(avgTemp20_weekly$full_wk_temp)
 ```
 
 ### ARIMA Model Tuning
@@ -452,7 +453,6 @@ ggplot_na_imputations(timeseries, seadec, title = "Seasonally Decomposed Interpo
 To model time series trends, I use an Autoregressive Integrated Moving Average (ARIMA) model. After differencing the time series with a 52 week lag to remove trends, I apply an auto-correlation function to view correlation coefficients by time series lag.  The tailing ACF and dropoff in Partial ACF suggest that the ARIMA model should include a autoregressive component.  The presence of the significant Partial ACF coeffcient at lag 12 suggests that the model should also include a moving average component.
 
 ```{r time series model 1}
-ts_complete <- seadec
 
 # Below, ploting time series and de-trended time series.
 par(mfrow = c(3,1))
@@ -482,11 +482,10 @@ Surprisingly, the auto.arima function did not return a seasonal component.  Belo
 
 # Non-seasonal model with auto.arima from forecast package.
 auto.arima(ts_complete) 
-sarima(ts_complete, p=2, d=0, q=1)
+model <- sarima(ts_complete, p=2, d=0, q=1)
 
 # seasonal model
 sarima(ts_complete, p=2,d=0,q=1,P=0,D=0,Q=1,S=26)
-
 ```
 
 ### Model Predictions
@@ -510,7 +509,6 @@ rmse <- sqrt(mean((pred$pred[1:(length(test) - length(train))] - tail(test, n=le
 print(paste("The RMSE for this ARIMA(2,0,1) model is ", round(rmse, 4)))
 
 
-
 #visualizing accuracy of SARIMA model
 strain  <- window(ts_complete, end = round(length(ts_complete)*0.9, 0)) # 90% of data
 stest <- window(ts_complete, end = length(ts_complete))
@@ -523,13 +521,15 @@ lines(test)
 #RMSE sqrt(mean((pred$pred - test)^2))
 srmse <- sqrt(mean((spred$pred[1:(length(stest) - length(strain))] - tail(stest, n=length(stest) - length(strain)))^2))
 print(paste("The RMSE for this SARIMA(2,0,1)(0,0,1)[26] model is ", round(srmse, 4)))
+
 ```
 
 
-```{r other ML model predictions}
-library(caret)
-library(pROC)
 
+
+
+```{r other ML model predictions}
+# Below, creating train/test split.
 avgTemp20_full$full_temp <- na_seadec(avgTemp20_full$avg_temp, algorithm = "interpolation", find_frequency = TRUE)
 ggplot_na_imputations(avgTemp20_full$avg_temp, avgTemp20_full$full_temp, title = "Seasonally Decomposed Interpolation")
 
@@ -538,27 +538,49 @@ mltrain <- avgTemp20_full[1:split, ]
 mltest <- avgTemp20_full[(split + 1) : nrow(avgTemp20_full), ]
 
 
+# Below, training new model
 mlmodel <- train(full_temp ~ date + year + week,
                  data = mltrain, 
                  method = "gam",
-                 verbose = FALSE
-                
-               )
+                 verbose = FALSE)
 
  #close models: gam, 
 summary(mlmodel)
 
-predictions <- predict(mlmodel, mltest)
+# Below, predicting test values and visualizing accuracy.
+mltest$predictions <- predict(mlmodel, newdata=mltest)
+
 
 accuracy(mltest$full_temp, predictions)
 
 
-ggplot(mltest, aes(x=date, y=full_temp)) +
+ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
   geom_point() +
-  geom_point(aes(mltest$date, predictions), color = "red")
+  geom_line(data=mltest,
+            aes(date, predictions), 
+            color="blue",
+            size = 1)
 
-ROC <- roc(mltest$full_temp, predictions)
-plot(ROC, col = "blue")
-auc(ROC) 
+####################### other GAM model. needs transformations of inputs #####
+gam_model <- gam(full_temp ~ s(as.numeric(date))+ year + week, data=mltrain)
+summary(gam_model)
+
+mltest$gam_pred <- predict(gam_model, newdata=mltest)
+
+
+accuracy(mltest$full_temp, mltest$gam_pred)
+
+
+ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
+  geom_point() +
+  geom_line(data=mltest,
+            aes(date, mltest$gam_pred), 
+            color="blue",
+            size = 1)
 ```
 
+
+
+```{r tbats model}
+avgTemp20_full$full_temp %>% tbats() %>% forecast(h=365) %>% autoplot()
+```
