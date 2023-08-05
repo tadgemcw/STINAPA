@@ -542,9 +542,10 @@ mltest <- avgTemp20_full[(split + 1) : nrow(avgTemp20_full), ]
 mlmodel <- train(full_temp ~ date + year + week,
                  data = mltrain, 
                  method = "gam",
+                 preProcess = "scale",
                  verbose = FALSE)
 
- #close models: gam, 
+###########close models: gam, xgbTree
 summary(mlmodel)
 
 # Below, predicting test values and visualizing accuracy.
@@ -555,28 +556,12 @@ accuracy(mltest$full_temp, predictions)
 
 
 ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
-  geom_point() +
+  geom_point(alpha=0.3) +
   geom_line(data=mltest,
             aes(date, predictions), 
             color="blue",
             size = 1)
 
-####################### other GAM model. needs transformations of inputs #####
-gam_model <- gam(full_temp ~ s(as.numeric(date))+ year + week, data=mltrain)
-summary(gam_model)
-
-mltest$gam_pred <- predict(gam_model, newdata=mltest)
-
-
-accuracy(mltest$full_temp, mltest$gam_pred)
-
-
-ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
-  geom_point() +
-  geom_line(data=mltest,
-            aes(date, mltest$gam_pred), 
-            color="blue",
-            size = 1)
 ```
 
 
