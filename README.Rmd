@@ -21,6 +21,7 @@ library(astsa) #for time series modeling and plotting
 library(imputeTS) #for imputing missing time series data
 library(forecast) #for auto.arima
 library(caret) #for ML modeling
+library(mgcv)
 ```
 
 ```{r global settings, setup, include=FALSE}
@@ -351,12 +352,10 @@ temp_20m <- temp_mma %>%
   filter(depth_m == 20) %>%
   group_by(date)
 
-       
 # Below, filtering for dates and avg. temps
 avgTemp20m <- temp_20m %>%
   summarize(avg_temp = mean(avg_temp)) %>%
   arrange(date)
-
 
 # Plotting distribution of stats.
 temp_20m %>% pivot_longer('min_temp':'max_temp', 
@@ -411,7 +410,7 @@ avgTemp20_weekly <- avgTemp20_full %>%
   distinct(year, week, wk_temp)
 
 #Validating all weeks are present
-#table(avgTemp12_weekly$year, avgTemp12_weekly$week)
+#table(avgTemp20_weekly$year, avgTemp20_weekly$week)
 
 
 #Reviewing missing data from weekly averages
@@ -444,8 +443,8 @@ seadec <- na_seadec(avgTemp20_weekly$wk_temp, algorithm = "interpolation", find_
 ggplot_na_imputations(avgTemp20_weekly$wk_temp, seasplit, title = "Seasonally Split Interpolation")
 ggplot_na_imputations(avgTemp20_weekly$wk_temp, seadec, title = "Seasonally Decomposed Interpolation")
 
-CompleteWkTemp20 <- avgTemp20_weekly[,-3]
-ts_complete <- ts(avgTemp20_weekly$wk_temp)
+
+ts_complete <- ts(seadec)
 ```
 
 ### ARIMA Model Tuning
@@ -541,19 +540,21 @@ mltest <- avgTemp20_full[(split + 1) : nrow(avgTemp20_full), ]
 
 ```{r caret gam}
 
-mlmodel <- train(full_temp ~ date + year + week,
+myControl <- trainControl(method = "timeslice",
+                          initialWindow = 60,
+                          horizon = 60,
+                          fixedWindow = FALSE,
+                          allowParallel = TRUE)
+
+caret.mod <- train(full_temp ~ date + year + week,
                  data = mltrain, 
                  method = "gam",
                  preProcess = "scale",
-                 trControl = trainControl(
-                   method = "cv",
-                   number = 10,
-                   verboseIter = TRUE)
-                 )
+                 trControl = myControl)
+                 
 
-###########close models: gam, xgbTree
-summary(mlmodel)
-plot(mlmodel)
+summary(caret.mod)
+plot(caret.mod)
 
 ```
 
@@ -561,7 +562,7 @@ plot(mlmodel)
 
 ```{r caret predictions}
 # Below, predicting test values and visualizing accuracy.
-mltest$caret.pred <- predict(mlmodel, newdata=mltest)
+mltest$caret.pred <- predict(caret.mod, newdata=mltest)
 
 accuracy(mltest$full_temp, mltest$caret.pred)
 
@@ -584,6 +585,7 @@ library(mgcv)
 gam.mod <- gam(full_temp ~ te(log(as.numeric(date))) + te(log(week), k=52)+ te(log(year), k=3),
                data = mltrain,
                method = "REML") 
+
 summary(gam.mod)
 gam.check(gam.mod)
 
