@@ -538,51 +538,11 @@ mltest <- avgTemp20_full[(split + 1) : nrow(avgTemp20_full), ]
 
 
 
-```{r caret gam}
-
-myControl <- trainControl(method = "timeslice",
-                          initialWindow = 60,
-                          horizon = 60,
-                          fixedWindow = FALSE,
-                          allowParallel = TRUE)
-
-caret.mod <- train(full_temp ~ date + year + week,
-                 data = mltrain, 
-                 method = "gam",
-                 preProcess = "scale",
-                 trControl = myControl)
-                 
-
-summary(caret.mod)
-plot(caret.mod)
-
-```
-
-
-
-```{r caret predictions}
-# Below, predicting test values and visualizing accuracy.
-mltest$caret.pred <- predict(caret.mod, newdata=mltest)
-
-accuracy(mltest$full_temp, mltest$caret.pred)
-
-ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
-  geom_point(alpha=0.3) +
-  geom_line(data=mltest,
-            aes(date, caret.pred), 
-            color="orange",
-            size = 1)
-
-```
-
-
-
-
 ```{r mgcv gam model}
 library(mgcv)
 
 
-gam.mod <- gam(full_temp ~ te(log(as.numeric(date))) + te(log(week), k=52)+ te(log(year), k=3),
+gam.mod <- gam(full_temp ~ s(log(as.numeric(date))) + s(log(week), k=52) + s(log(year), k=3),
                data = mltrain,
                method = "REML") 
 
@@ -594,6 +554,7 @@ concurvity(gam.mod, full=FALSE)
 
 plot(gam.mod, scheme=2)
 
+checkresiduals(gam.mod)
 ```
 
 
