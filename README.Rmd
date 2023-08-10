@@ -445,7 +445,7 @@ ggplot_na_imputations(avgTemp20_weekly$wk_temp, seasplit, title = "Seasonally Sp
 ggplot_na_imputations(avgTemp20_weekly$wk_temp, seadec, title = "Seasonally Decomposed Interpolation")
 
 CompleteWkTemp20 <- avgTemp20_weekly[,-3]
-ts_complete <- ts(avgTemp20_weekly$full_wk_temp)
+ts_complete <- ts(avgTemp20_weekly$wk_temp)
 ```
 
 ### ARIMA Model Tuning
@@ -527,8 +527,7 @@ print(paste("The RMSE for this SARIMA(2,0,1)(0,0,1)[26] model is ", round(srmse,
 
 
 
-
-```{r other ML model predictions}
+```{r ML train test creation}
 # Below, creating train/test split.
 avgTemp20_full$full_temp <- na_seadec(avgTemp20_full$avg_temp, algorithm = "interpolation", find_frequency = TRUE)
 ggplot_na_imputations(avgTemp20_full$avg_temp, avgTemp20_full$full_temp, title = "Seasonally Decomposed Interpolation")
@@ -536,36 +535,78 @@ ggplot_na_imputations(avgTemp20_full$avg_temp, avgTemp20_full$full_temp, title =
 split <- round(nrow(avgTemp20_full) * 0.90)
 mltrain <- avgTemp20_full[1:split, ]
 mltest <- avgTemp20_full[(split + 1) : nrow(avgTemp20_full), ]
+```
 
 
-# Below, training new model
+
+```{r caret gam}
+
 mlmodel <- train(full_temp ~ date + year + week,
                  data = mltrain, 
                  method = "gam",
                  preProcess = "scale",
-                 verbose = FALSE)
+                 trControl = trainControl(
+                   method = "cv",
+                   number = 10,
+                   verboseIter = TRUE)
+                 )
 
 ###########close models: gam, xgbTree
 summary(mlmodel)
+plot(mlmodel)
 
+```
+
+
+
+```{r caret predictions}
 # Below, predicting test values and visualizing accuracy.
-mltest$predictions <- predict(mlmodel, newdata=mltest)
+mltest$caret.pred <- predict(mlmodel, newdata=mltest)
 
-
-accuracy(mltest$full_temp, predictions)
-
+accuracy(mltest$full_temp, mltest$caret.pred)
 
 ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
   geom_point(alpha=0.3) +
   geom_line(data=mltest,
-            aes(date, predictions), 
-            color="blue",
+            aes(date, caret.pred), 
+            color="orange",
             size = 1)
 
 ```
 
 
 
-```{r tbats model}
-avgTemp20_full$full_temp %>% tbats() %>% forecast(h=365) %>% autoplot()
+
+```{r mgcv gam model}
+library(mgcv)
+
+
+gam.mod <- gam(full_temp ~ te(log(as.numeric(date))) + te(log(week), k=52)+ te(log(year), k=3),
+               data = mltrain,
+               method = "REML") 
+summary(gam.mod)
+gam.check(gam.mod)
+
+concurvity(gam.mod, full=TRUE)
+concurvity(gam.mod, full=FALSE)
+
+plot(gam.mod, scheme=2)
+
 ```
+
+
+
+```{r mgcv gam predictions}
+
+mltest$gam_preds <- predict(gam.mod, newdata=mltest)
+
+accuracy(mltest$full_temp, mltest$gam_preds)
+
+ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
+  geom_point(alpha=0.3) +
+  geom_line(data=mltest,
+            aes(date, gam_preds), 
+            color="red",
+            size = 1)
+```
+
