@@ -40,13 +40,13 @@ tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
 ![](/Users/tadgemcwilliams/Documents/Data Science/STINAPA/STINAPA/Joanne's Sunchi1.jpg)
 
 ## Summary
-The goal of this project is to assist [Stichting Nationale Parken Bonaire](https://stinapabonaire.org) (STINAPA) in their review and analysis of water temperature data collected between 2020 and 2022.  Special consideration is given to temperature outliers.  Values deemed to be impossible water temperatures have been removed while low temperature outliers have been retained.  Missing data has been interpolated using seasonally decomposed imputation.  The resulting data set is used to develop an Autoregressive Integrated Moving Average (ARIMA) model by which to generate seasonal temperature predictions with confidence intervals.  
+The goal of this project is to assist [Stichting Nationale Parken Bonaire](https://stinapabonaire.org) (STINAPA) in their review and analysis of water temperature data collected between 2020 and 2022.  Special consideration is given to temperature outliers.  Values deemed to be impossible water temperatures have been removed while low temperature outliers have been retained.  Missing data has been interpolated using seasonally decomposed imputation.  The resulting data set is used to develop an Autoregressive Integrated Moving Average (ARIMA) model and Generalized Additive Model (GAM) by which to generate seasonal temperature predictions with confidence intervals.  
 
-The documented effects of climate change have the potential to alter the underwater ecosystem in considerable ways.  While more analysis is needed, I hope this project will lead to the analysis of temperature shifts and the development of future models from which STINAPA and others can further their work.
+The documented effects of climate change have the potential to alter the underwater ecosystem in considerable ways.  While more analysis is needed, I hope this project will lead to further analysis of temperature shifts and the development of future models from which STINAPA and others can further their work.
 
 ## Methodology
 
-This analysis is based on a series of aggregations and transformations of the data provided.  All calculations and visualizations are performed using R. R packages for this project include knitr, readxl, tidyverse, lubridate, flextable, rempsyc, asta, imputeTS, forecast, and caret. The report is formatted in Markdown, and all versions have been pushed to a github repository.
+This analysis is based on a series of aggregations and transformations of the data provided.  All calculations and visualizations are performed using R. R packages for this project include *knitr*, *readxl*, *tidyverse*, *lubridate*, *flextable*, *rempsyc*, *asta*, *imputeTS*, *forecast*, and *mgcv*. The report is formatted in Markdown, and all versions have been pushed to a github repository.
 
 ### Data Collection
 The data provided was collected during 2020 through 2022 by STINAPA using HOBO temperature and light data loggers.  Data loggers were place in four locations and at three depths per location.  Each data logger recorded a temperature observation every five minutes.  Each weeks, data was collected and the HOBO data loggers were cleaned by STINAPA. In total, there are **1,932,026 observations**.  Each observation was recorded with the following variables:
@@ -379,7 +379,7 @@ qqline(avgTemp20m$avg_temp, col = "red")
 ```
 ### Missing Data
 
-An important factor in time series analysis is the continuity of time.  Using the statNA function from the *imputeTS* package, I determine that 220 observations (days) are missing from the timeline.  This represents a significant proportion of the data set (22%).  
+An important factor in time series analysis is the continuity of time.  Using the *statNA* function from the *imputeTS* package, I determine that 220 observations (days) are missing from the timeline.  This represents a significant proportion of the data set (22%).  
 The plots below indicate that the data is missing at random.  Imputation must be used to complete the data set as reducing the length of data set would not yield a complete year by which to model seasonal trends.
 
 ```{r modeling prep for NAs}
@@ -396,7 +396,7 @@ statsNA(avgTemp20_full$avg_temp)
 ```
 
 
-In order to minimize the amount of imputation needed, I aggregate the data into weekly temperature averages.  This reduces the percentage of missing data to 15.2% (22 weeks).  Additionally, the weekly averages yield a more manageable data set for future seasonal differencing.  Below is a plot of missing data by week.
+In order to minimize the amount of imputation needed, I aggregate the data into weekly temperature averages.  This reduces the percentage of missing data to 15.2% (22 weeks).  Additionally, the weekly averages yield a more manageable data set for seasonal differencing.  Below is a plot of missing data by week.
 
 ```{r Modeling Prep- Aggregating into weekly data}
 #Aggregating into weekly averages to minimize imputation needs.
@@ -471,9 +471,10 @@ ts_complete %>% diff(lag=52) %>% acf2(max.lag = 52)
 
 ```
 
+
 I calculate a basic ARIMA model using the *auto.arima* function.  In agreement with the ACF calculations, the suggested model is an ARIMA(2,0,1) model with two autoregressive components and one moving average component.  The p-value for all components is zero.  The plot also suggests that the residual values follow a white noise pattern, indicating a good fit.
 
-Surprisingly, the auto.arima function did not return a seasonal component.  Below the ARIMA(2,0,1) results, I manually fit a seasonal ARIMA model (SARIMA) in an effort to improve accuracy.  While a SARIMA(2,0,1)(0,0,1)[26] model yields a similar Akaike's Information Criterion (AIC) score to the ARIMA(2,0,1) model, the ARIMA model is marginally more accurate.  It is possible that annual trends are not significant for this data set due to the number of years included.  Thus, the ARIMA(2,0,1) model is the most accurate; however, it would be wise to reconsider the SARIMA(2,0,1)(0,0,1)[26] model if the data set were expanded.
+Surprisingly, the auto.arima function did not return a seasonal component.  Below the ARIMA(2,0,1) results, I manually fit a seasonal ARIMA model (SARIMA) in an effort to improve accuracy.  While a SARIMA(2,0,1)(0,0,1)[26] model yields a similar Akaike's Information Criterion (AIC) score to the ARIMA(2,0,1) model, the ARIMA model is marginally more accurate.  It is possible that annual trends are not significant for this data set due to the number of years included.  Thus, the ARIMA(2,0,1) model is the most accurate for this data set. However, it would be wise to reconsider the SARIMA(2,0,1)(0,0,1)[26] model if the data set were expanded.
 
 
 ```{r modeling and tuning}
@@ -488,9 +489,10 @@ model <- sarima(ts_complete, p=2, d=0, q=1)
 sarima(ts_complete, p=2,d=0,q=1,P=0,D=0,Q=1,S=26)
 ```
 
+
 #### ARIMA Model Predictions
 
-Below, both ARIMA models are trained on 90% of the time series, then used to predict the remaining 10% of the known values.  When the estimated values are compared with the actual values, the both models appear to fit well.  Additionally, the two models have the same root-mean-square-error (RMSE) and mean-absolute-percentage-error (MAPE) to within one ten-thousandth.
+Below, both ARIMA models are trained on 90% of the time series, then used to predict the remaining 10% of the known values.  When the estimated values are compared with the actual values, both models appear to fit well.  Additionally, the two models have the same root-mean-square-error (RMSE) and mean-absolute-percentage-error (MAPE) to within one ten-thousandth.
 
 
 ```{r arima model predictions}
@@ -524,11 +526,11 @@ accuracy(spred$pred, test)
 
 ### GAM Model Development
 
-I selected a generalize additive model (GAM) as an alternative modeling option.  As GAMs are composed of multiple smooth functions, I hoped the approach would yield an accurate non-linear model derived from separate annual, weekly, and daily changes in water temperature.  For this model I use the daily averages of water temperatures instead of the weekly averaged data used in the ARIMA models as the GAM results are more accurate.  Seasonally Decomposed Interpolation is used to fill the missing training data is done for the ARIMA models.
+I selected a Generalize Additive Model (GAM) as an alternative modeling method.  As GAMs are composed of multiple smooth functions, I hoped the approach would yield an accurate non-linear model derived from separate annual, weekly, and daily functions to determine water temperature.  For this model I use the daily averages of water temperatures instead of the weekly averaged data used in the ARIMA models as the GAM results prove to be are more accurate with the added data.  Seasonally Decomposed Interpolation is again used to fill the missing training data.
 
-I use a log transformation and adjust K values to tune the GAM.  The model summary confirms the results are statistically significant as p-values are well under 0.001.  The concurvity tests indicate high levels of concurvity between the input variables.  While not optimal for many models, this is common with time smooths that utilized multiple units of measure.  I propose that the benefit of smoothing across annual, weekly, and daily trends outweighs the loss in interpretability as each variable is a unit of time.  
+I use a log transformation and adjust K values to tune the GAM.  The model summary confirms the results are statistically significant with p-values under 0.001.  The concurvity tests indicate high levels of concurvity between the input variables.  While not optimal for many models, this is common with time smooths that utilized multiple units of measure.  I propose that the benefit of smoothing across annual, weekly, and daily segments outweighs the loss in interpretability as each variable is a unit of time.  
 
-The residual plots do not indicate notable trends in residual; the GAM residuals are similar in nature with those of the ARIMA models.  The *vis.gam* function provides a tidy visualization of the interaction between the *week* and *year* variables.
+The residual plots do not indicate notable trends, residuals appear to have a Gaussian distribution, and a linear response; the GAM residuals are similar in nature with those of the ARIMA models.  The *vis.gam* function provides a tidy visualization of the interaction between the *week* and *year* variables.
 
 ```{r GAM train test creation}
 # Below, creating train/test split.
@@ -566,7 +568,7 @@ vis.gam(x=gam.mod,
 
 #### GAM Model Predictions
 
-As with the ARIMA models, the GAM was trained on 90% of the date set, then used to predict the remaining 10% of known values.  Comparing the estimated values with actual values indicates the model is also a reasonably good fit.  It is notable that the GAM predictions yield a high level of accuracy for the first 10 out of the 14+ weeks of predictions before the confidence intervals flair out.  Additional model tuning is needed, and further pre-processing steps may help to improve accuracy.
+As with the ARIMA models, the GAM was trained on 90% of the data set, then used to predict the remaining 10% of known values.  Comparing the estimated values with actual values indicates the model is also a reasonably good fit.  It is notable that the GAM predictions yield a high level of accuracy for the first 10 out of the 14+ weeks of predictions before the confidence intervals flair out.  
 
 ```{r gam predictions}
 
@@ -597,8 +599,8 @@ ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
 accuracy(ts(mltest$full_temp), ts(mltest$gam_preds))
 ```
 
-#### Model Comparison
+### Model Comparison
 
-The GAM predictions do not follow as smooth of a trend line as the ARIMA models; however, the initial few predictions appear to be more accurate.  In comparing the ACF at one lag for each model, the GAM has a higher degree of autocorrelation.  For this test data set the higher ACF does not correspond with a more accurate model, but it does indicate that the GAM is predicting values at a higher correlation with the previous value than the ARIMA models.  For this reason, initial predictions may tend to be more accurate while later predictions quickly become less so.  In total, the measures of accuracy (RMSE, MAPE, etc.) are lower for the ARIMA models than for the GAM, indicating the ARIMA models are slightly more accurate.  
+The GAM predictions do not follow as smooth of a predictive line as the ARIMA models; however, the initial few predictions appear to be more accurate.  In comparing the ACF at one lag for each model, the GAM has a higher degree of autocorrelation.  For this test data set the higher ACF does not correspond with a more accurate model, but it does indicate that the GAM is predicting values at a higher correlation with the previous value than the ARIMA models.  For this reason, initial predictions may tend to be more accurate while later predictions may become less so.  In total, the measures of accuracy (RMSE, MAPE, etc.) are lower for the ARIMA models than for the GAM, indicating the ARIMA models are more accurate.  
 
-As with any predictive model, results can be improved through further research, tuning, and testing.  Adjustments to data collection, outlier thresholds, pre-processing, model selection, and hyper-tuning parameters are all relevant areas of study.  It is my hope that this project may lead to the development of future models and analysis by which STINAPA and others may further their work.
+As with any predictive model, results can be improved through further research, tuning, and testing.  Adjustments to data collection, outlier thresholds, pre-processing, model selection, and hyper-tuning parameters are all relevant areas for improvement.  It is my hope that these models provide a baseline from which further modeling can be generated.
