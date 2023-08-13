@@ -20,9 +20,10 @@ library(rempsyc) #for nice table
 library(astsa) #for time series modeling and plotting
 library(imputeTS) #for imputing missing time series data
 library(forecast) #for auto.arima
-library(caret) #for ML modeling
-library(mgcv)
+library(mgcv) #for gam modeling
+
 ```
+
 
 ```{r global settings, setup, include=FALSE}
 opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
@@ -447,7 +448,7 @@ ggplot_na_imputations(avgTemp20_weekly$wk_temp, seadec, title = "Seasonally Deco
 ts_complete <- ts(seadec)
 ```
 
-### ARIMA Model Tuning
+### ARIMA Model Development
 
 To model time series trends, I use an Autoregressive Integrated Moving Average (ARIMA) model. After differencing the time series with a 52 week lag to remove trends, I apply an auto-correlation function to view correlation coefficients by time series lag.  The tailing ACF and dropoff in Partial ACF suggest that the ARIMA model should include a autoregressive component.  The presence of the significant Partial ACF coeffcient at lag 12 suggests that the model should also include a moving average component.
 
@@ -487,9 +488,9 @@ model <- sarima(ts_complete, p=2, d=0, q=1)
 sarima(ts_complete, p=2,d=0,q=1,P=0,D=0,Q=1,S=26)
 ```
 
-### Model Predictions
+#### ARIMA Model Predictions
 
-Below, both models are trained on 90% of the time series, then used to predict the remaining 10% of the known values.  When the estimated values are compared with the actual values, the both models appear to fit well.  Additionally, the seasonal model has a marginally smaller root-mean-square-error (RMSE) than the non-seasonal model.
+Below, both ARIMA models are trained on 90% of the time series, then used to predict the remaining 10% of the known values.  When the estimated values are compared with the actual values, the both models appear to fit well.  Additionally, the seasonal model has a marginally smaller root-mean-square-error (RMSE) than the non-seasonal model.
 
 
 ```{r arima model predictions}
@@ -497,36 +498,35 @@ Below, both models are trained on 90% of the time series, then used to predict t
 #visualizing ARIMA(2,0,1) accuracy
 train  <- window(ts_complete, end = round(length(ts_complete)*0.9, 0)) # 90% of data
 test <- window(ts_complete, end = length(ts_complete))
-new_values <- 52
+new_values <- 14
 pred <- sarima.for(train, n.ahead = new_values, p=2,d=0,q=1, 
                    main="ARIMA(2,0,1) Temperature Predictions",
                    xlab="Weeks")
 lines(test)
 
-#RMSE sqrt(mean((pred$pred - test)^2))
-rmse <- sqrt(mean((pred$pred[1:(length(test) - length(train))] - tail(test, n=length(test) - length(train)))^2))
-print(paste("The RMSE for this ARIMA(2,0,1) model is ", round(rmse, 4)))
+
+accuracy(pred$pred, test)
 
 
 #visualizing accuracy of SARIMA model
 strain  <- window(ts_complete, end = round(length(ts_complete)*0.9, 0)) # 90% of data
 stest <- window(ts_complete, end = length(ts_complete))
-new_values <- 52
+new_values <- 14
 spred <- sarima.for(strain, n.ahead = new_values, p=2,d=0,q=1,P=0,D=0,Q=1,S=26, 
                    main="SARIMA(2,0,1)(0,0,1)[26] Temperature Predictions",
                    xlab="Weeks")
 lines(test)
 
-#RMSE sqrt(mean((pred$pred - test)^2))
-srmse <- sqrt(mean((spred$pred[1:(length(stest) - length(strain))] - tail(stest, n=length(stest) - length(strain)))^2))
-print(paste("The RMSE for this SARIMA(2,0,1)(0,0,1)[26] model is ", round(srmse, 4)))
+accuracy(spred$pred, test)
 
 ```
 
 
+### GAM Model Development
 
 
-```{r ML train test creation}
+
+```{r GAM train test creation}
 # Below, creating train/test split.
 avgTemp20_full$full_temp <- na_seadec(avgTemp20_full$avg_temp, algorithm = "interpolation", find_frequency = TRUE)
 ggplot_na_imputations(avgTemp20_full$avg_temp, avgTemp20_full$full_temp, title = "Seasonally Decomposed Interpolation")
@@ -537,10 +537,7 @@ mltest <- avgTemp20_full[(split + 1) : nrow(avgTemp20_full), ]
 ```
 
 
-
-```{r mgcv gam model}
-library(mgcv)
-
+```{r gam model}
 
 gam.mod <- gam(full_temp ~ s(log(as.numeric(date))) + s(log(week), k=52) + s(log(year), k=3),
                data = mltrain,
@@ -552,24 +549,43 @@ gam.check(gam.mod)
 concurvity(gam.mod, full=TRUE)
 concurvity(gam.mod, full=FALSE)
 
-plot(gam.mod, scheme=2)
-
 checkresiduals(gam.mod)
+
+vis.gam(x=gam.mod, 
+        view=c("week", "year"),
+        plot.type = "persp",
+        theta = 30)
+
 ```
 
+#### GAM Model Predictions
 
+```{r gam predictions}
 
-```{r mgcv gam predictions}
-
-mltest$gam_preds <- predict(gam.mod, newdata=mltest)
-
-accuracy(mltest$full_temp, mltest$gam_preds)
+gam.pred <- predict(gam.mod, newdata=mltest, se.fit = TRUE)
+mltest$gam_preds <- gam.pred$fit
+mltest$gam_se <- gam.pred$se.fit
 
 ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
-  geom_point(alpha=0.3) +
-  geom_line(data=mltest,
+  geom_point(shape = 1, alpha=0.8) +
+  geom_line(alpha=0.3) +
+  geom_ribbon(data=mltest,
+            aes(date, ymin = gam_preds-gam_se, ymax=gam_preds+gam_se),
+            alpha=0.3) +
+    geom_point(data=mltest,
             aes(date, gam_preds), 
-            color="red",
-            size = 1)
+            shape=1,
+            color="red3",
+            alpha=0.4) +
+    geom_line(data=mltest,
+            aes(date, gam_preds), 
+            color="red3") +
+  scale_y_continuous(limits=c(25.9,31)) +
+  labs(x="Date", 
+       y="Temperature (c)",
+       title="GAM Temperature Predictions") +
+  theme_bw()
+
+accuracy(mltest$full_temp, mltest$gam_preds)
 ```
 
