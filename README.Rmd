@@ -1,8 +1,8 @@
 ---
-title: "Analysis of Water Temperature Trends With ARIMA"
+title: "Analysis of Water Temperature Trends With GAM & ARIMA Models"
 subtitle: "A Collaboration with STINAPA"
 author: "Tadge McWilliams"
-date: "August 1st, 2023"
+date: "August 13th, 2023"
 output: 
   html_document:
     toc: TRUE
@@ -471,9 +471,9 @@ ts_complete %>% diff(lag=52) %>% acf2(max.lag = 52)
 
 ```
 
-I calculate a basic ARIMA model using the *auto.arima* function.  In agreement with the ACF calculations, the suggested model is an ARIMA(2,0,1) model with two autoregressive components and one moving average component.  The p-value for all components is zero.  Also, the plot suggests that the residual values follow a white noise pattern, indicating a good fit.
+I calculate a basic ARIMA model using the *auto.arima* function.  In agreement with the ACF calculations, the suggested model is an ARIMA(2,0,1) model with two autoregressive components and one moving average component.  The p-value for all components is zero.  The plot also suggests that the residual values follow a white noise pattern, indicating a good fit.
 
-Surprisingly, the auto.arima function did not return a seasonal component.  Below the ARIMA(2,0,1) results, I manually fit a seasonal ARIMA model (SARIMA) in an effort to improve accuracy.  While a SARIMA(2,0,1)(0,0,1)[26] model comes yields a similar Akaike's Information Criterion (AIC) score to the ARIMA(2,0,1) model, the ARIMA model is marginally more accurate.  It is possible that annual trends are not significant for this data set due to the number of years included.  Thus, the ARIMA(2,0,1) model is the most accurate; however, it would be wise to reconsider the SARIMA(2,0,1)(0,0,1){26} model if the data set were expanded.
+Surprisingly, the auto.arima function did not return a seasonal component.  Below the ARIMA(2,0,1) results, I manually fit a seasonal ARIMA model (SARIMA) in an effort to improve accuracy.  While a SARIMA(2,0,1)(0,0,1)[26] model yields a similar Akaike's Information Criterion (AIC) score to the ARIMA(2,0,1) model, the ARIMA model is marginally more accurate.  It is possible that annual trends are not significant for this data set due to the number of years included.  Thus, the ARIMA(2,0,1) model is the most accurate; however, it would be wise to reconsider the SARIMA(2,0,1)(0,0,1)[26] model if the data set were expanded.
 
 
 ```{r modeling and tuning}
@@ -490,7 +490,7 @@ sarima(ts_complete, p=2,d=0,q=1,P=0,D=0,Q=1,S=26)
 
 #### ARIMA Model Predictions
 
-Below, both ARIMA models are trained on 90% of the time series, then used to predict the remaining 10% of the known values.  When the estimated values are compared with the actual values, the both models appear to fit well.  Additionally, the seasonal model has a marginally smaller root-mean-square-error (RMSE) than the non-seasonal model.
+Below, both ARIMA models are trained on 90% of the time series, then used to predict the remaining 10% of the known values.  When the estimated values are compared with the actual values, the both models appear to fit well.  Additionally, the two models have the same root-mean-square-error (RMSE) and mean-absolute-percentage-error (MAPE) to within one ten-thousandth.
 
 
 ```{r arima model predictions}
@@ -524,7 +524,11 @@ accuracy(spred$pred, test)
 
 ### GAM Model Development
 
+I selected a generalize additive model (GAM) as an alternative modeling option.  As GAMs are composed of multiple smooth functions, I hoped the approach would yield an accurate non-linear model derived from separate annual, weekly, and daily changes in water temperature.  For this model I use the daily averages of water temperatures instead of the weekly averaged data used in the ARIMA models as the GAM results are more accurate.  Seasonally Decomposed Interpolation is used to fill the missing training data is done for the ARIMA models.
 
+I use a log transformation and adjust K values to tune the GAM.  The model summary confirms the results are statistically significant as p-values are well under 0.001.  The concurvity tests indicate high levels of concurvity between the input variables.  While not optimal for many models, this is common with time smooths that utilized multiple units of measure.  I propose that the benefit of smoothing across annual, weekly, and daily trends outweighs the loss in interpretability as each variable is a unit of time.  
+
+The residual plots do not indicate notable trends in residual; the GAM residuals are similar in nature with those of the ARIMA models.  The *vis.gam* function provides a tidy visualization of the interaction between the *week* and *year* variables.
 
 ```{r GAM train test creation}
 # Below, creating train/test split.
@@ -543,6 +547,7 @@ gam.mod <- gam(full_temp ~ s(log(as.numeric(date))) + s(log(week), k=52) + s(log
                data = mltrain,
                method = "REML") 
 
+
 summary(gam.mod)
 gam.check(gam.mod)
 
@@ -553,12 +558,15 @@ checkresiduals(gam.mod)
 
 vis.gam(x=gam.mod, 
         view=c("week", "year"),
+        type = "link",
         plot.type = "persp",
         theta = 30)
 
 ```
 
 #### GAM Model Predictions
+
+As with the ARIMA models, the GAM was trained on 90% of the date set, then used to predict the remaining 10% of known values.  Comparing the estimated values with actual values indicates the model is also a reasonably good fit.  It is notable that the GAM predictions yield a high level of accuracy for the first 10 out of the 14+ weeks of predictions before the confidence intervals flair out.  Additional model tuning is needed, and further pre-processing steps may help to improve accuracy.
 
 ```{r gam predictions}
 
@@ -586,6 +594,11 @@ ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
        title="GAM Temperature Predictions") +
   theme_bw()
 
-accuracy(mltest$full_temp, mltest$gam_preds)
+accuracy(ts(mltest$full_temp), ts(mltest$gam_preds))
 ```
 
+#### Model Comparison
+
+The GAM predictions do not follow as smooth of a trend line as the ARIMA models; however, the initial few predictions appear to be more accurate.  In comparing the ACF at one lag for each model, the GAM has a higher degree of autocorrelation.  For this test data set the higher ACF does not correspond with a more accurate model, but it does indicate that the GAM is predicting values at a higher correlation with the previous value than the ARIMA models.  For this reason, initial predictions may tend to be more accurate while later predictions quickly become less so.  In total, the measures of accuracy (RMSE, MAPE, etc.) are lower for the ARIMA models than for the GAM, indicating the ARIMA models are slightly more accurate.  
+
+As with any predictive model, results can be improved through further research, tuning, and testing.  Adjustments to data collection, outlier thresholds, pre-processing, model selection, and hyper-tuning parameters are all relevant areas of study.  It is my hope that this project may lead to the development of future models and analysis by which STINAPA and others may further their work.
