@@ -10,8 +10,14 @@ output:
       collapsed: FALSE
 ---
 
-```{r loading packages, echo=TRUE, include=FALSE}
+
+```{r global settings, setup, include=FALSE}
 library(knitr) #global settings
+opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+```{r loading packages}
 library(readxl)
 library(tidyverse) 
 library(lubridate) # for dates
@@ -23,11 +29,6 @@ library(imputeTS) #for imputing missing time series data
 library(forecast) #for auto.arima
 library(mgcv) #for gam modeling
 
-```
-
-
-```{r global settings, setup, include=FALSE}
-opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 
