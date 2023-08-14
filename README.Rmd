@@ -10,11 +10,12 @@ output:
       collapsed: FALSE
 ---
 
-```{r loading packages, echo=FALSE, include=FALSE}
+```{r loading packages, echo=TRUE, include=FALSE}
 library(knitr) #global settings
 library(readxl)
 library(tidyverse) 
-library(lubridate) 
+library(lubridate) # for dates
+library(pander) # for tables
 library(flextable) #for nice table
 library(rempsyc) #for nice table
 library(astsa) #for time series modeling and plotting
@@ -26,7 +27,7 @@ library(mgcv) #for gam modeling
 
 
 ```{r global settings, setup, include=FALSE}
-opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 
@@ -86,6 +87,7 @@ ggplot(tl2020, aes(x=factor(month(date)), y = temp_c)) +
     geom_hline(aes(yintercept = 33, col = "33 Degrees")) + 
     geom_hline(aes(yintercept = statoutlier2020, col = "1.5 x IQR")) +
     theme(legend.title=element_blank())
+
 ```
 
 
@@ -160,7 +162,7 @@ tl2022_33$time <- strftime(tl2022_33$time, format="%H:%M:%S")
 I aggregated the data by date, then filtered for the daily minimum, maximum, and average temperatures.  From 2020 through 2022, there is an increase in the temperature difference between the monthly high-temperature and the monthly mean.  Average temperatures during 2021 were lower in many months than in 2020 or 2022.  Review of average temperatures by depth indicate a significant decrease in temperature at six meters during 2021 and a greater spread between depths in 2022.  
 
 ```{r daily min/max and avg water temp by day}
-#2020
+# 2020
 temp20mm <- tl2020_33 %>% 
   select(date, site, depth_m, temp_c) %>%
   group_by(site, depth_m, date) %>% 
@@ -169,7 +171,7 @@ temp20mm <- tl2020_33 %>%
             max_temp = max(temp_c)) %>%
   arrange(date, site, depth_m)
 
-#2021
+# 2021
 temp21mm <- tl2021_33 %>% 
   select(date, site, depth_m, temp_c) %>%
   group_by(site, depth_m, date) %>% 
@@ -178,7 +180,7 @@ temp21mm <- tl2021_33 %>%
             max_temp = max(temp_c)) %>%
   arrange(date, site, depth_m)
 
-#2022
+# 2022
 temp22mm <- tl2022_33 %>% 
   select(date, site, depth_m, temp_c) %>%
   group_by(site, depth_m, date) %>% 
@@ -187,14 +189,14 @@ temp22mm <- tl2022_33 %>%
             max_temp = max(temp_c)) %>%
   arrange(date, site, depth_m)
 
-#Combine all years
+# Combine all years
 temp_mma <- temp20mm %>%
   bind_rows(temp21mm) %>%
   bind_rows(temp22mm) %>%
   mutate(year = year(date),
          month = month(date))
 
-#Below, 2020 summary stats.
+# 2020 summary stats
 temp_mma %>% 
   filter(year == 2020) %>%
   group_by(factor(months(date), level = month.name)) %>%
@@ -212,7 +214,7 @@ temp_mma %>%
   nice_table(title = "2020 Temperature Summary Statistics") %>%
   colformat_num(digits = 1)
 
-#Below, 2021 summary stats.
+# 2021 summary stats
 temp_mma %>% 
   filter(year == 2021) %>%
   group_by(factor(months(date), level = month.name)) %>%
@@ -230,7 +232,7 @@ temp_mma %>%
   nice_table(title = "2021 Temperature Summary Statistics") %>%
   colformat_num(digits = 1)
 
-#Below, 2022 summary stats.
+# 2022 summary stats
 temp_mma %>% 
   filter(year == 2022) %>%
   group_by(factor(months(date), level = month.name)) %>%
@@ -271,7 +273,6 @@ ggplot(temp_mma, aes(date, avg_temp, color = factor(depth_m))) +
        color = "Depth (m)",
        title = "Average Water Temperature by Depth")
 
-
 ggplot(temp_mma, aes(factor(depth_m), avg_temp, color = site)) +
   geom_boxplot() +
   labs(x = "Depth (m)",
@@ -288,10 +289,10 @@ The histogram indicates that the data is multi-modal.  This is logical as the ob
 
 ```{r reviewing data by site and depth}
 
-table(temp_mma$site, temp_mma$depth_m) 
-table(temp_mma$site, temp_mma$depth_m) %>% rowSums() 
-table(temp_mma$site, temp_mma$depth_m) %>% colSums()
-### can these be formatted to plotted with nice_table?
+pander(table(temp_mma$site, temp_mma$depth_m))
+pander(table(temp_mma$site, temp_mma$depth_m) %>% rowSums())
+pander(table(temp_mma$site, temp_mma$depth_m) %>% colSums())
+
 
 temp_mma %>% filter(depth_m == 12) %>%
   ggplot(aes(avg_temp, fill = site)) +
@@ -301,6 +302,7 @@ temp_mma %>% filter(depth_m == 12) %>%
        y = "Observations",
        fill = "Site",
        title = "Observations Collected by Temperature & Location")
+
 ```
 
 ### Low Temperature Outliers
@@ -319,7 +321,7 @@ temp20mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
          "Maximum" = max_temp) %>%
   nice_table(title = "2020 Temperature Observations Below 23 Degrees (c)")
 
-#2021 low temp outliers
+# 2021 low temp outliers
 temp21mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
   rename("Date" = date, 
          "Site" = site, 
@@ -329,7 +331,7 @@ temp21mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
          "Maximum" = max_temp) %>%
   nice_table(title = "2021 Temperature Observations Below 23 Degrees (c)")
             
-#2022 low temp outliers
+# 2022 low temp outliers
 temp22mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
   rename("Date" = date, 
          "Site" = site, 
@@ -338,6 +340,7 @@ temp22mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
          "Average" = avg_temp,
          "Maximum" = max_temp) %>%
   nice_table(title = "2022 Temperature Observations Below 23 Degrees (c)")
+
 ```
 
 ## Model Developement
@@ -349,12 +352,12 @@ Below is the distribution of temperatures.  Once the maximum, average, and minim
 Future modeling must include a seasonality component to account for the distribution. 
 
 ```{r model prep- filtering to 12m}
-# Below, filtering 12 meters from all sites, then averaging each day's data.
+# Filtering 12 meters from all sites, then averaging each day's data.
 temp_20m <- temp_mma %>% 
   filter(depth_m == 20) %>%
   group_by(date)
 
-# Below, filtering for dates and avg. temps
+# Filtering for dates and average temps.
 avgTemp20m <- temp_20m %>%
   summarize(avg_temp = mean(avg_temp)) %>%
   arrange(date)
@@ -384,8 +387,8 @@ An important factor in time series analysis is the continuity of time.  Using th
 The plots below indicate that the data is missing at random.  Imputation must be used to complete the data set as reducing its length would not yield a complete year by which to model seasonal trends.
 
 ```{r modeling prep for NAs}
-# Populating complete date series
 
+# Populating complete date series
 avgTemp20_full <- avgTemp20m %>%
   mutate(date = as.Date(date)) %>%
   complete(date = seq.Date(min(date), max(date), by="day"))
@@ -400,7 +403,8 @@ statsNA(avgTemp20_full$avg_temp)
 In order to minimize the amount of imputation needed, I aggregate the data into weekly temperature averages.  This reduces the percentage of missing data to 15.2% (22 weeks).  Additionally, the weekly averages yield a more manageable data set for seasonal differencing.  Below is a plot of missing data by week.
 
 ```{r Modeling Prep- Aggregating into weekly data}
-#Aggregating into weekly averages to minimize imputation needs.
+
+# Aggregating into weekly averages to minimize imputation needs.
 avgTemp20_full <- avgTemp20_full %>% 
   mutate(week = week(date),
          year = year(date))
@@ -411,11 +415,10 @@ avgTemp20_weekly <- avgTemp20_full %>%
   mutate(wk_temp = mean(avg_temp, na.rm=TRUE)) %>%
   distinct(year, week, wk_temp)
 
-#Validating all weeks are present
-#table(avgTemp20_weekly$year, avgTemp20_weekly$week)
+# Validating all weeks are present.
+# table(avgTemp20_weekly$year, avgTemp20_weekly$week)
 
-
-#Reviewing missing data from weekly averages
+# Reviewing missing data from weekly averages.
 statsNA(avgTemp20_weekly$wk_temp)
 
 ggplot_na_distribution(avgTemp20_weekly$wk_temp) +
@@ -445,7 +448,6 @@ seadec <- na_seadec(avgTemp20_weekly$wk_temp, algorithm = "interpolation", find_
 ggplot_na_imputations(avgTemp20_weekly$wk_temp, seasplit, title = "Seasonally Split Interpolation")
 ggplot_na_imputations(avgTemp20_weekly$wk_temp, seadec, title = "Seasonally Decomposed Interpolation")
 
-
 ts_complete <- ts(seadec)
 ```
 
@@ -455,19 +457,13 @@ To model time series trends I use an Autoregressive Integrated Moving Average (A
 
 ```{r time series model 1}
 
-# Below, ploting time series and de-trended time series.
+# Ploting time series and de-trended time series.
 par(mfrow = c(3,1))
 plot(ts_complete)
 plot(diff(ts_complete, lag = 52))
 plot(diff(diff(ts_complete, lag = 52)))
 
-# Process
-# 1. save diff(diff(timeseries)) to remove trends and make stationary.
-# 2. plot standardized object.
-# 3. run acf2() to compare lag drop offs or tails between acf vs pacf(). 
-#      tailing acf suggests AR model (x,1,0,0); tailing pacf suggests MA model (x,0,0,1.  both suggests ARMA model (x,1,0,1)
-
-# Below, plotting auto correlation and partial auto correlation.
+# Plotting auto correlation and partial auto correlation.
 ts_complete %>% diff(lag=52) %>% acf2(max.lag = 52)
 
 ```
@@ -478,9 +474,7 @@ I calculate a basic ARIMA model using the *auto.arima* function.  In agreement w
 Surprisingly, the *auto.arima* function did not return a seasonal component.  Below the ARIMA(2,0,1) results, I manually fit a seasonal ARIMA model (SARIMA) in an effort to improve accuracy.  While a SARIMA(2,0,1)(0,0,1)[26] model yields a similar Akaike's Information Criterion (AIC) score to the ARIMA(2,0,1) model, the ARIMA model is marginally more accurate.  It is possible that annual trends are not significant for this data set due to the number of years included.  Thus, the ARIMA(2,0,1) model is the most accurate for this data set. However, it would be wise to reconsider the SARIMA(2,0,1)(0,0,1)[26] model if the data set were expanded.
 
 
-```{r modeling and tuning}
-# Use sarima() from astsa package for multi-plot of ts model.
-#sarima(ts_complete, p,d,q, P,D,Q, S)
+```{r arima model tuning}
 
 # Non-seasonal model with auto.arima from forecast package.
 auto.arima(ts_complete) 
@@ -498,7 +492,7 @@ Below, both ARIMA models are trained on 90% of the time series then used to pred
 
 ```{r arima model predictions}
 
-#visualizing ARIMA(2,0,1) accuracy
+# visualizing ARIMA(2,0,1) accuracy.
 train  <- window(ts_complete, end = round(length(ts_complete)*0.9, 0)) # 90% of data
 test <- window(ts_complete, end = length(ts_complete))
 new_values <- 14
@@ -508,10 +502,10 @@ pred <- sarima.for(train, n.ahead = new_values, p=2,d=0,q=1,
 lines(test)
 
 
-accuracy(pred$pred, test)
+pander(accuracy(pred$pred, test))
 
 
-#visualizing accuracy of SARIMA model
+# visualizing accuracy of SARIMA model.
 strain  <- window(ts_complete, end = round(length(ts_complete)*0.9, 0)) # 90% of data
 stest <- window(ts_complete, end = length(ts_complete))
 new_values <- 14
@@ -520,7 +514,7 @@ spred <- sarima.for(strain, n.ahead = new_values, p=2,d=0,q=1,P=0,D=0,Q=1,S=26,
                    xlab="Weeks")
 lines(test)
 
-accuracy(spred$pred, test)
+pander(accuracy(spred$pred, test))
 
 ```
 
@@ -534,7 +528,7 @@ I use a log transformation and adjust K-values to tune the GAM.  The model summa
 The residual plots do not indicate notable trends, residuals appear to have a Gaussian distribution, and there is a clear linear response.  The GAM residuals are similar in nature with those of the ARIMA models.  The *vis.gam* function provides a tidy visualization of the interaction between the *week* and *year* variables.
 
 ```{r GAM train test creation}
-# Below, creating train/test split.
+# Creating train/test split.
 avgTemp20_full$full_temp <- na_seadec(avgTemp20_full$avg_temp, algorithm = "interpolation", find_frequency = TRUE)
 ggplot_na_imputations(avgTemp20_full$avg_temp, avgTemp20_full$full_temp, title = "Seasonally Decomposed Interpolation")
 
