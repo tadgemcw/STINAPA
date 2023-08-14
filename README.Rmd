@@ -1,5 +1,5 @@
 ---
-title: "Analysis of Water Temperature Trends With GAM & ARIMA Models"
+title: "Analysis of Water Temperature Trends Using GAM & ARIMA Models"
 subtitle: "A Collaboration with STINAPA"
 author: "Tadge McWilliams"
 date: "August 13th, 2023"
@@ -40,20 +40,21 @@ tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
 ![](/Users/tadgemcwilliams/Documents/Data Science/STINAPA/STINAPA/Joanne's Sunchi1.jpg)
 
 ## Summary
-The goal of this project is to assist [Stichting Nationale Parken Bonaire](https://stinapabonaire.org) (STINAPA) in their review and analysis of water temperature data collected between 2020 and 2022.  Special consideration is given to temperature outliers.  Values deemed to be impossible water temperatures have been removed while low temperature outliers have been retained.  Missing data has been interpolated using seasonally decomposed imputation.  The resulting data set is used to develop an Autoregressive Integrated Moving Average (ARIMA) model and Generalized Additive Model (GAM) by which to generate seasonal temperature predictions with confidence intervals.  
 
-The documented effects of climate change have the potential to alter the underwater ecosystem in considerable ways.  While more analysis is needed, I hope this project will lead to further analysis of temperature shifts and the development of future models from which STINAPA and others can further their work.
+The documented effects of climate change have the potential to alter the underwater ecosystem in considerable ways.   Rapid increases in temperature can damage reef systems, alter fish migration patterns, and disrupt food chains.  
+The goal of this project is to assist [Stichting Nationale Parken Bonaire](https://stinapabonaire.org) (STINAPA) in their review and analysis of water temperature data collected around Bonaire between 2020 and 2022.  Special consideration is given to temperature outliers.  Values deemed to be impossible water temperatures have been removed while low temperature outliers have been retained.  Missing data has been interpolated using seasonally decomposed imputation.  The resulting data set is used to develop an Autoregressive Integrated Moving Average (ARIMA) model and Generalized Additive Model (GAM) by which to generate seasonal temperature predictions with confidence intervals.  While more analysis is needed, this project is intended to encourage additional analysis of temperature shifts and the development of future models from which STINAPA and others can further their work.
 
 ## Methodology
 
-This analysis is based on a series of aggregations and transformations of the data provided.  All calculations and visualizations are performed using R. R packages for this project include *knitr*, *readxl*, *tidyverse*, *lubridate*, *flextable*, *rempsyc*, *asta*, *imputeTS*, *forecast*, and *mgcv*. The report is formatted in Markdown, and all versions have been pushed to a github repository.
+This analysis is based on a series of aggregations and transformations of the data provided.  All calculations and visualizations are performed using R. R packages for this project include *knitr*, *readxl*, *tidyverse*, *lubridate*, *flextable*, *rempsyc*, *asta*, *imputeTS*, *forecast*, and *mgcv*. The report is formatted in Markdown, and all versions have been pushed to a GitHub repository.
 
 ### Data Collection
+
 The data provided was collected during 2020 through 2022 by STINAPA using HOBO temperature and light data loggers.  Data loggers were place in four locations and at three depths per location.  Each data logger recorded a temperature observation every five minutes.  Each weeks, data was collected and the HOBO data loggers were cleaned by STINAPA. In total, there are **1,932,026 observations**.  Each observation was recorded with the following variables:
 
 * **date:** Date observation was collected (Y-M-D).
 * **time:** Time observation was collected (H-M-S).
-* **temp_c:** Temperature recorded in celcius.
+* **temp_c:** Temperature recorded in Celsius.
 * **sensor_id:** Serial number of HOBO data logger. 
 * **site:** Location of data logger.
 * **depth_m:** The depth of the data logger in meters.
@@ -67,7 +68,7 @@ For this data set I chose to include all observations below the first quartile. 
 
 Outliers above the third quartile were carefully considered.  In reviewing the data, it is clear that some temperature readings are impossible ocean temperatures.  There is also a plausible scenario in which the data loggers continued to record temperatures when they were brought above water.  They were likely placed on a boat in direct sunlight during weekly cleaning and data retrieval.  I concluded that the impossible values should be removed from the data set so as to yield a more accurate analysis, but choosing a threshold for unnatural observations was challenging.  Initially, I calculated the the threshold using a standard statistical outlier method (Q3 + 1.5 x IQR) for each year; however, a significant number of observations fall along that threshold.  Additionally, the data appears to have a bi-modal distribution due to seasonal weather patterns.  Using an outlier threshold of 1.5 x IQR is typically only an acceptable practice with normally distributed data.
 
-In consulting Erik Meesters, Tropical Marine Ecologist and Bio Statistician at Wageningen Marine Research, I agreed with his suggestion that any observations above 33 degrees celsius were not recorded in the water[^1].  The visualizations below help to confirm that while a 33 degree threshold is made a priori, the greater threshold includes potentially natural outliers while excluding the majority of observations that are impossible for the climate.  This method could be deemed overly conservative or simplistic, but as Erik aptly suggested, it would be prudent not to omit any observations unless you are 100% sure the reading is wrong.
+In consulting Erik Meesters, Tropical Marine Ecologist and Bio Statistician at Wageningen Marine Research, I agreed with his direction that any observations above 33 degrees Celsius were not recorded in the water[^1].  The visualizations below help to confirm that while a 33-degree threshold is made a priori, the greater threshold includes potentially natural outliers while excluding the majority of observations that are impossible for the climate.  This method could be deemed overly conservative or simplistic, but as Mr. Meesters aptly suggested, it would be prudent not to omit any observations unless you are 100% sure the reading is wrong.
 
 [^1]: E. Meesters, personal communication, March 16th, 2023.
 
@@ -156,7 +157,7 @@ tl2022_33$time <- strftime(tl2022_33$time, format="%H:%M:%S")
 
 ### Summary Statistics
 
-I aggregated the data by date, then filtered for the daily minimum, maximum, and average temperatures.  From 2020 through 2022, there is an increase in the temperature difference between the monthly high temperature and the monthly mean.  Average temperatures during 2021 were lower in many months in in 2020 or 2022.  Review of average temperatures by depth indicate a significant decrease in temperature at six meters during 2021 and a greater spread between depths in 2022.  
+I aggregated the data by date, then filtered for the daily minimum, maximum, and average temperatures.  From 2020 through 2022, there is an increase in the temperature difference between the monthly high-temperature and the monthly mean.  Average temperatures during 2021 were lower in many months than in 2020 or 2022.  Review of average temperatures by depth indicate a significant decrease in temperature at six meters during 2021 and a greater spread between depths in 2022.  
 
 ```{r daily min/max and avg water temp by day}
 #2020
@@ -341,7 +342,7 @@ temp22mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
 
 ## Model Developement
 
-I made the decision to use the data collected from 20 meters from for the time series model.  By isolating the model to one depth, I hope to create a more accurate model than if I were to assume all the data followed one trend, regardless of depth.  
+I made the decision to use the data collected from 20 meters for the time series model.  By isolating the model to one depth, I intend to create a more accurate model than if I were to assume all the data follow one trend, regardless of depth.  
 
 Below is the distribution of temperatures.  Once the maximum, average, and minimum temperatures are separated, a clear bi-modal distribution is visible.  Variation in the QQ-Plot also confirms the data is not normally distributed.  
 
@@ -380,7 +381,7 @@ qqline(avgTemp20m$avg_temp, col = "red")
 ### Missing Data
 
 An important factor in time series analysis is the continuity of time.  Using the *statNA* function from the *imputeTS* package, I determine that 220 observations (days) are missing from the timeline.  This represents a significant proportion of the data set (22%).  
-The plots below indicate that the data is missing at random.  Imputation must be used to complete the data set as reducing the length of data set would not yield a complete year by which to model seasonal trends.
+The plots below indicate that the data is missing at random.  Imputation must be used to complete the data set as reducing its length would not yield a complete year by which to model seasonal trends.
 
 ```{r modeling prep for NAs}
 # Populating complete date series
@@ -450,7 +451,7 @@ ts_complete <- ts(seadec)
 
 ### ARIMA Model Development
 
-To model time series trends, I use an Autoregressive Integrated Moving Average (ARIMA) model. After differencing the time series with a 52 week lag to remove trends, I apply an auto-correlation function to view correlation coefficients by time series lag.  The tailing ACF and dropoff in Partial ACF suggest that the ARIMA model should include a autoregressive component.  The presence of the significant Partial ACF coeffcient at lag 12 suggests that the model should also include a moving average component.
+To model time series trends I use an Autoregressive Integrated Moving Average (ARIMA) model. After differencing the time series with a 52-week lag to remove trends, I apply an auto-correlation function to view correlation coefficients by time series lag.  The tailing ACF and drop-off in Partial ACF suggest that the ARIMA model should include a autoregressive component.  The presence of the significant Partial ACF coefficient at lag 12 suggests that the model should also include a moving average component.
 
 ```{r time series model 1}
 
@@ -474,7 +475,7 @@ ts_complete %>% diff(lag=52) %>% acf2(max.lag = 52)
 
 I calculate a basic ARIMA model using the *auto.arima* function.  In agreement with the ACF calculations, the suggested model is an ARIMA(2,0,1) model with two autoregressive components and one moving average component.  The p-value for all components is zero.  The plot also suggests that the residual values follow a white noise pattern, indicating a good fit.
 
-Surprisingly, the auto.arima function did not return a seasonal component.  Below the ARIMA(2,0,1) results, I manually fit a seasonal ARIMA model (SARIMA) in an effort to improve accuracy.  While a SARIMA(2,0,1)(0,0,1)[26] model yields a similar Akaike's Information Criterion (AIC) score to the ARIMA(2,0,1) model, the ARIMA model is marginally more accurate.  It is possible that annual trends are not significant for this data set due to the number of years included.  Thus, the ARIMA(2,0,1) model is the most accurate for this data set. However, it would be wise to reconsider the SARIMA(2,0,1)(0,0,1)[26] model if the data set were expanded.
+Surprisingly, the *auto.arima* function did not return a seasonal component.  Below the ARIMA(2,0,1) results, I manually fit a seasonal ARIMA model (SARIMA) in an effort to improve accuracy.  While a SARIMA(2,0,1)(0,0,1)[26] model yields a similar Akaike's Information Criterion (AIC) score to the ARIMA(2,0,1) model, the ARIMA model is marginally more accurate.  It is possible that annual trends are not significant for this data set due to the number of years included.  Thus, the ARIMA(2,0,1) model is the most accurate for this data set. However, it would be wise to reconsider the SARIMA(2,0,1)(0,0,1)[26] model if the data set were expanded.
 
 
 ```{r modeling and tuning}
@@ -492,7 +493,7 @@ sarima(ts_complete, p=2,d=0,q=1,P=0,D=0,Q=1,S=26)
 
 #### ARIMA Model Predictions
 
-Below, both ARIMA models are trained on 90% of the time series, then used to predict the remaining 10% of the known values.  When the estimated values are compared with the actual values, both models appear to fit well.  Additionally, the two models have the same root-mean-square-error (RMSE) and mean-absolute-percentage-error (MAPE) to within one ten-thousandth.
+Below, both ARIMA models are trained on 90% of the time series then used to predict the remaining 10% of the known values.  When the estimated values are compared with the actual values, both models appear to fit well.  Additionally, the two models have the same root-mean-square-error (RMSE) and mean-absolute-percentage-error (MAPE) to within one ten-thousandth.
 
 
 ```{r arima model predictions}
@@ -528,9 +529,9 @@ accuracy(spred$pred, test)
 
 I selected a Generalize Additive Model (GAM) as an alternative modeling method.  As GAMs are composed of multiple smooth functions, I hoped the approach would yield an accurate non-linear model derived from separate annual, weekly, and daily functions to determine water temperature.  For this model I use the daily averages of water temperatures instead of the weekly averaged data used in the ARIMA models as the GAM results prove to be are more accurate with the added data.  Seasonally Decomposed Interpolation is again used to fill the missing training data.
 
-I use a log transformation and adjust K values to tune the GAM.  The model summary confirms the results are statistically significant with p-values under 0.001.  The concurvity tests indicate high levels of concurvity between the input variables.  While not optimal for many models, this is common with time smooths that utilized multiple units of measure.  I propose that the benefit of smoothing across annual, weekly, and daily segments outweighs the loss in interpretability as each variable is a unit of time.  
+I use a log transformation and adjust K-values to tune the GAM.  The model summary confirms the results are statistically significant with p-values below 0.001.  The concurvity tests indicate high levels of concurvity between the input variables.  While not optimal for many models, this is common with time smooths that utilize multiple units of measure.  I propose that the benefit of smoothing across annual, weekly, and daily segments outweighs the loss in interpretability as each variable is a unit of time.  
 
-The residual plots do not indicate notable trends, residuals appear to have a Gaussian distribution, and a linear response; the GAM residuals are similar in nature with those of the ARIMA models.  The *vis.gam* function provides a tidy visualization of the interaction between the *week* and *year* variables.
+The residual plots do not indicate notable trends, residuals appear to have a Gaussian distribution, and there is a clear linear response.  The GAM residuals are similar in nature with those of the ARIMA models.  The *vis.gam* function provides a tidy visualization of the interaction between the *week* and *year* variables.
 
 ```{r GAM train test creation}
 # Below, creating train/test split.
@@ -568,7 +569,7 @@ vis.gam(x=gam.mod,
 
 #### GAM Model Predictions
 
-As with the ARIMA models, the GAM was trained on 90% of the data set, then used to predict the remaining 10% of known values.  Comparing the estimated values with actual values indicates the model is also a reasonably good fit.  It is notable that the GAM predictions yield a high level of accuracy for the first 10 out of the 14+ weeks of predictions before the confidence intervals flair out.  
+As with the ARIMA models, the GAM was trained on 90% of the data set then used to predict the remaining 10% of known values.  Comparing the estimated values with actual values indicates the model is also a reasonably good fit.  It is notable that the GAM predictions yield a high level of accuracy for the first 10 out of the 14 weeks of predictions before the confidence intervals flair out.  
 
 ```{r gam predictions}
 
@@ -603,4 +604,4 @@ accuracy(ts(mltest$full_temp), ts(mltest$gam_preds))
 
 The GAM predictions do not follow as smooth of a predictive line as the ARIMA models; however, the initial few predictions appear to be more accurate.  In comparing the ACF at one lag for each model, the GAM has a higher degree of autocorrelation.  For this test data set the higher ACF does not correspond with a more accurate model, but it does indicate that the GAM is predicting values at a higher correlation with the previous value than the ARIMA models.  For this reason, initial predictions may tend to be more accurate while later predictions may become less so.  In total, the measures of accuracy (RMSE, MAPE, etc.) are lower for the ARIMA models than for the GAM, indicating the ARIMA models are more accurate.  
 
-As with any predictive model, results can be improved through further research, tuning, and testing.  Adjustments to data collection, outlier thresholds, pre-processing, model selection, and hyper-tuning parameters are all relevant areas for improvement.  It is my hope that these models provide a baseline from which further modeling can be generated.
+As with any predictive model, results can be improved through further research, tuning, and testing.  Adjustments to data collection, outlier thresholds, pre-processing, model selection, and hyper-tuning parameters are all relevant areas for improvement.
