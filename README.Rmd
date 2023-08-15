@@ -2,7 +2,7 @@
 title: "Analysis of Water Temperature Trends Using GAM & ARIMA Models"
 subtitle: "A Collaboration with STINAPA"
 author: "Tadge McWilliams"
-date: "August 13th, 2023"
+date: "August 14th, 2023"
 output: 
   html_document:
     toc: TRUE
@@ -13,7 +13,7 @@ output:
 
 ```{r global settings, setup, include=FALSE}
 library(knitr) #global settings
-opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 
@@ -68,7 +68,7 @@ Outliers play an important part in this data set.  Statistically, outliers are o
 
 For this data set I chose to include all observations below the first quartile.  My reasoning is as follows: First, it is reasonable to assume that abnormally low temperature readings are legitimate.  Given Bonaire's hot climate, unnatural readings are difficult to produce unless a data logger malfunctions or is placed in an artificially cooled environment.  Secondly, upwellings of colder water have been recorded in the past, and these upwellings can have a significant effect on the environment.  Thus, their presence is an important feature for study.
 
-Outliers above the third quartile were carefully considered.  In reviewing the data, it is clear that some temperature readings are impossible ocean temperatures.  There is also a plausible scenario in which the data loggers continued to record temperatures when they were brought above water.  They were likely placed on a boat in direct sunlight during weekly cleaning and data retrieval.  I concluded that the impossible values should be removed from the data set so as to yield a more accurate analysis, but choosing a threshold for unnatural observations was challenging.  Initially, I calculated the the threshold using a standard statistical outlier method (Q3 + 1.5 x IQR) for each year; however, a significant number of observations fall along that threshold.  Additionally, the data appears to have a bi-modal distribution due to seasonal weather patterns.  Using an outlier threshold of 1.5 x IQR is typically only an acceptable practice with normally distributed data.
+Outliers above the third quartile were carefully considered.  In reviewing the data, it is clear that some temperature readings are impossible ocean temperatures.  There is also a plausible scenario in which the data loggers continued to record temperatures when they were brought above water.  They were likely placed on a boat in direct sunlight during weekly cleaning and data retrieval.  I concluded that the impossible values should be removed from the data set so as to yield a more accurate analysis, but choosing a threshold for unnatural observations was challenging.  Initially, I calculated the threshold using a standard statistical outlier method (Q3 + 1.5 x IQR) for each year; however, a significant number of observations fall along that threshold.  Additionally, the data appears to have a bi-modal distribution due to seasonal weather patterns.  Using an outlier threshold of 1.5 x IQR is typically only an acceptable practice with normally distributed data.
 
 In consulting Erik Meesters, Tropical Marine Ecologist and Bio Statistician at Wageningen Marine Research, I agreed with his direction that any observations above 33 degrees Celsius were not recorded in the water[^1].  The visualizations below help to confirm that while a 33-degree threshold is made a priori, the greater threshold includes potentially natural outliers while excluding the majority of observations that are impossible for the climate.  This method could be deemed overly conservative or simplistic, but as Mr. Meesters aptly suggested, it would be prudent not to omit any observations unless you are 100% sure the reading is wrong.
 
@@ -290,10 +290,8 @@ The histogram indicates that the data is multi-modal.  This is logical as the ob
 
 ```{r reviewing data by site and depth}
 
-pander(table(temp_mma$site, temp_mma$depth_m))
-pander(table(temp_mma$site, temp_mma$depth_m) %>% rowSums())
-pander(table(temp_mma$site, temp_mma$depth_m) %>% colSums())
-
+tab <- with(temp_mma, table(site, depth_m))
+as_flextable(tab, col = character(site = "Site", depth_m = "Depth (m)"))
 
 temp_mma %>% filter(depth_m == 12) %>%
   ggplot(aes(avg_temp, fill = site)) +
@@ -344,7 +342,7 @@ temp22mm %>% filter(min_temp < 23) %>% arrange(date)  %>%
 
 ```
 
-## Model Developement
+## Model Development
 
 I made the decision to use the data collected from 20 meters for the time series model.  By isolating the model to one depth, I intend to create a more accurate model than if I were to assume all the data follow one trend, regardless of depth.  
 
@@ -501,11 +499,14 @@ pred <- sarima.for(train, n.ahead = new_values, p=2,d=0,q=1,
                    main="ARIMA(2,0,1) Temperature Predictions",
                    xlab="Weeks")
 lines(test)
+```
 
-
+```{r arima accuracy}
 pander(accuracy(pred$pred, test))
+```
 
 
+```{r sarima model predictions}
 # visualizing accuracy of SARIMA model.
 strain  <- window(ts_complete, end = round(length(ts_complete)*0.9, 0)) # 90% of data
 stest <- window(ts_complete, end = length(ts_complete))
@@ -515,14 +516,17 @@ spred <- sarima.for(strain, n.ahead = new_values, p=2,d=0,q=1,P=0,D=0,Q=1,S=26,
                    xlab="Weeks")
 lines(test)
 
-pander(accuracy(spred$pred, test))
+```
 
+
+```{r sarima accuracy}
+pander(accuracy(spred$pred, test))
 ```
 
 
 ### GAM Model Development
 
-I selected a Generalize Additive Model (GAM) as an alternative modeling method.  As GAMs are composed of multiple smooth functions, I hoped the approach would yield an accurate non-linear model derived from separate annual, weekly, and daily functions to determine water temperature.  For this model I use the daily averages of water temperatures instead of the weekly averaged data used in the ARIMA models as the GAM results prove to be are more accurate with the added data.  Seasonally Decomposed Interpolation is again used to fill the missing training data.
+I selected a Generalize Additive Model (GAM) as an alternative modeling method.  As GAMs are composed of multiple smooth functions, I hoped the approach would yield an accurate non-linear model derived from separate annual, weekly, and daily functions to determine water temperature.  For this model I use the daily averages of water temperatures instead of the weekly averaged data used in the ARIMA models as the GAM results are more accurate with the added data.  Seasonally Decomposed Interpolation is again used to fill the missing training data.
 
 I use a log transformation and adjust K-values to tune the GAM.  The model summary confirms the results are statistically significant with p-values below 0.001.  The concurvity tests indicate high levels of concurvity between the input variables.  While not optimal for many models, this is common with time smooths that utilize multiple units of measure.  I propose that the benefit of smoothing across annual, weekly, and daily segments outweighs the loss in interpretability as each variable is a unit of time.  
 
