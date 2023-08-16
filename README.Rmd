@@ -160,7 +160,7 @@ tl2022_33$time <- strftime(tl2022_33$time, format="%H:%M:%S")
 
 ### Summary Statistics
 
-I aggregated the data by date, then filtered for the daily minimum, maximum, and average temperatures.  From 2020 through 2022, there is an increase in the temperature difference between the monthly high-temperature and the monthly mean.  Average temperatures during 2021 were lower in many months than in 2020 or 2022.  Review of average temperatures by depth indicate a significant decrease in temperature at six meters during 2021 and a greater spread between depths in 2022.  
+I aggregated the data by date, then filtered for the daily minimum, maximum, and average temperatures.  From 2020 through 2022, there is an increase in the temperature difference between the monthly high-temperature and the monthly mean.  Average temperatures during 2021 were lower in many months than in 2020 or 2022.  Review of average temperatures by depth indicate a significant decrease in temperature at six meters during 2021 and a greater spread between depths in 2022.  Notably, there appears to be a trend of increasing range between the mean and max values from one year to the next.  Said differently, the max temperatures for a given month 
 
 ```{r daily min/max and avg water temp by day}
 # 2020
@@ -198,14 +198,15 @@ temp_mma <- temp20mm %>%
          month = month(date))
 
 # 2020 summary stats
-temp_mma %>% 
+sum20 <- temp_mma %>% 
   filter(year == 2020) %>%
   group_by(factor(months(date), level = month.name)) %>%
   summarize(min.temp = round(min(min_temp),2),
             avg.temp = round(mean(avg_temp),2),
             max.temp = round(max(max_temp),2),
             range = round(max.temp - min.temp, 2),
-            high_above_avg = round(max.temp - avg.temp, 2)) %>%
+            high_above_avg = round(max.temp - avg.temp, 2)) 
+sum20 %>%
   rename("Month" = "factor(months(date), level = month.name)",
          "Minimum" = min.temp,
          "Mean" = avg.temp,
@@ -216,14 +217,15 @@ temp_mma %>%
   colformat_num(digits = 1)
 
 # 2021 summary stats
-temp_mma %>% 
+sum21 <- temp_mma %>% 
   filter(year == 2021) %>%
   group_by(factor(months(date), level = month.name)) %>%
   summarize(min.temp = round(min(min_temp),2),
             avg.temp = round(mean(avg_temp),2),
             max.temp = round(max(max_temp),2),
             range = round(max.temp - min.temp, 2),
-            high_above_avg = round(max.temp - avg.temp, 2)) %>%
+            high_above_avg = round(max.temp - avg.temp, 2)) 
+sum21 %>%
   rename("Month" = "factor(months(date), level = month.name)",
          "Minimum" = min.temp,
          "Mean" = avg.temp,
@@ -234,14 +236,15 @@ temp_mma %>%
   colformat_num(digits = 1)
 
 # 2022 summary stats
-temp_mma %>% 
+sum22 <- temp_mma %>% 
   filter(year == 2022) %>%
   group_by(factor(months(date), level = month.name)) %>%
   summarize(min.temp = round(min(min_temp),2),
             avg.temp = round(mean(avg_temp),2),
             max.temp = round(max(max_temp),2),
             range = round(max.temp - min.temp, 2),
-            high_above_avg = round(max.temp - avg.temp, 2)) %>%
+            high_above_avg = round(max.temp - avg.temp, 2))
+sum22 %>%
   rename("Month" = "factor(months(date), level = month.name)",
          "Minimum" = min.temp,
          "Mean" = avg.temp,
@@ -280,6 +283,25 @@ ggplot(temp_mma, aes(factor(depth_m), avg_temp, color = site)) +
        y = "Temperature (c)",
        color = "Site",
        title = "Average Water Temperature by Depth & Location")
+
+
+# Plotting Max Above Mean by Year
+sum_all <- temp_mma %>% 
+  group_by(year, month) %>%
+  summarize(avg.temp = round(mean(avg_temp),2),
+            max.temp = round(max(max_temp),2),
+            high_above_avg = round(max.temp - avg.temp, 2))
+# Full date
+sum_all$date <- as.Date(with(sum_all,paste(year, month, "01", sep="-")),"%Y-%m-%d")
+
+
+ggplot(sum_all, aes(date, high_above_avg, color = factor(year))) +
+  geom_col() +
+  labs(x = "Time",
+       y = "Temperature (c)",
+       color = "Year",
+       title = "Maximum Temperature Above Monthly Mean")
+
 ```
 
 
@@ -291,7 +313,7 @@ The histogram indicates that the data is multi-modal.  This is logical as the ob
 ```{r reviewing data by site and depth}
 
 tab <- with(temp_mma, table(site, depth_m))
-as_flextable(tab, col = character(site = "Site", depth_m = "Depth (m)"))
+as_flextable(tab)
 
 temp_mma %>% filter(depth_m == 12) %>%
   ggplot(aes(avg_temp, fill = site)) +
@@ -585,11 +607,11 @@ ggplot(avgTemp20_full, aes(x=date, y=full_temp)) +
     geom_point(data=mltest,
             aes(date, gam_preds), 
             shape=1,
-            color="red3",
+            color="red2",
             alpha=0.4) +
     geom_line(data=mltest,
             aes(date, gam_preds), 
-            color="red3") +
+            color="red2") +
   scale_y_continuous(limits=c(25.9,31)) +
   labs(x="Date", 
        y="Temperature (c)",
