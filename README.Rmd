@@ -21,6 +21,7 @@ opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 library(readxl)
 library(tidyverse) 
 library(lubridate) # for dates
+library(RColorBrewer) # for colorblind friendly palettes
 library(pander) # for tables
 library(flextable) #for nice table
 library(rempsyc) #for nice table
@@ -272,6 +273,7 @@ ggplot(temp_mma, aes(month,  avg_temp, color = factor(year))) +
 
 ggplot(temp_mma, aes(date, avg_temp, color = factor(depth_m))) +
   geom_smooth(se=FALSE) +
+    scale_color_brewer(palette = "Set2") +
   labs(x = "Year",
        y = "Temperature (c)",
        color = "Depth (m)",
@@ -298,6 +300,7 @@ sum_all$date <- as.Date(with(sum_all,paste(year, month, "01", sep="-")),"%Y-%m-%
 ggplot(sum_all, aes(date, high_above_avg, color = factor(year))) +
   geom_col(fill = "white") +
   geom_smooth(aes(x=date, y=high_above_avg, color = year), method = "lm", se = FALSE, color = "orangered") +
+  scale_color_manual(values = c("deepskyblue1","darkviolet","darkblue")) +
   labs(x = "Time",
        y = "Temperature (c)",
        color = "Year",
