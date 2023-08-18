@@ -44,15 +44,15 @@ tl2022 <- read_excel("2022 raw.xlsx", sheet = 1)
 ## Summary
 
 The documented effects of climate change have the potential to alter the underwater ecosystem in considerable ways.   Rapid increases in temperature can damage reef systems, alter fish migration patterns, and disrupt food chains.  
-The goal of this project is to assist [Stichting Nationale Parken Bonaire](https://stinapabonaire.org) (STINAPA) in their review and analysis of water temperature data collected around Bonaire between 2020 and 2022.  Special consideration is given to temperature outliers.  Values deemed to be impossible water temperatures have been removed while low temperature outliers have been retained.  Missing data has been interpolated using seasonally decomposed imputation.  The resulting data set is used to develop an Autoregressive Integrated Moving Average (ARIMA) model and Generalized Additive Model (GAM) by which to generate seasonal temperature predictions with confidence intervals.  While more analysis is needed, this project is intended to encourage additional analysis of temperature shifts and the development of future models from which STINAPA and others can further their work.
+The goal of this project is to assist [Stichting Nationale Parken Bonaire](https://stinapabonaire.org) (STINAPA) in their review and analysis of water temperature data collected around Bonaire between 2020 and 2022.  Special consideration is given to temperature outliers.  Values deemed to be impossible water temperatures have been removed while low temperature outliers have been retained.  Missing data has been interpolated using seasonally decomposed imputation.  The resulting data set is used to develop an Autoregressive Integrated Moving Average (ARIMA) model and Generalized Additive Model (GAM).  Both are used to generate seasonal temperature predictions with confidence intervals.  While more analysis is needed, this project is intended to encourage additional analysis of temperature shifts and the development of future models from which STINAPA and others can further their work.
 
 ## Methodology
 
-This analysis is based on a series of aggregations and transformations of the data provided.  All calculations and visualizations are performed using R. R packages for this project include *knitr*, *readxl*, *tidyverse*, *lubridate*, *flextable*, *rempsyc*, *asta*, *imputeTS*, *forecast*, and *mgcv*. The report is formatted in Markdown, and all versions have been pushed to a GitHub repository.
+This analysis is based on a series of aggregations and transformations of the data provided.  All calculations and visualizations are performed using R. R packages used for this project include *knitr*, *readxl*, *tidyverse*, *lubridate*, *flextable*, *rempsyc*, *asta*, *imputeTS*, *forecast*, and *mgcv*. The report is formatted in Markdown, and all versions have been pushed to a GitHub repository.
 
 ### Data Collection
 
-The data provided was collected during 2020 through 2022 by STINAPA using HOBO temperature and light data loggers.  Data loggers were place in four locations and at three depths per location.  Each data logger recorded a temperature observation every five minutes.  Each weeks, data was collected and the HOBO data loggers were cleaned by STINAPA. In total, there are **1,932,026 observations**.  Each observation was recorded with the following variables:
+The data provided was collected during 2020 to 2022 by STINAPA using HOBO temperature and light data loggers.  Data loggers were place in four locations and at three depths per location.  Each data logger recorded a temperature observation every five minutes.  Each weeks, data was collected and the HOBO data loggers were cleaned by STINAPA. In total, there are **1,932,026 observations**.  Each observation was recorded with the following variables:
 
 * **date:** Date observation was collected (Y-M-D).
 * **time:** Time observation was collected (H-M-S).
@@ -296,7 +296,8 @@ sum_all$date <- as.Date(with(sum_all,paste(year, month, "01", sep="-")),"%Y-%m-%
 
 
 ggplot(sum_all, aes(date, high_above_avg, color = factor(year))) +
-  geom_col() +
+  geom_col(fill = "white") +
+  geom_smooth(aes(x=date, y=high_above_avg, color = year), method = "lm", se = FALSE, color = "orangered") +
   labs(x = "Time",
        y = "Temperature (c)",
        color = "Year",
@@ -326,7 +327,7 @@ temp_mma %>% filter(depth_m == 12) %>%
 
 ```
 
-### Low Temperature Outliers
+### Low-Temperature Outliers
 
 The plots above indicate a number of observations with temperatures below the first quartile.  The tables below list the lowest temperature observations for each year. It is notable that the isolated low temperature events in 2022 were all recorded at six meters.  No significant low temperatures were recorded at lower depths.  
 
@@ -448,9 +449,9 @@ ggplot_na_distribution(avgTemp20_weekly$wk_temp) +
 
 ### Imputation
 
-There are various imputation strategies.  The use of random, mean, or last-observed-carried-forward imputation were ruled out due to the seasonal nature of the data.  Seasonally Split, and Seasonally Decomposed imputation methods are provided below.  
+There are various imputation strategies.  The use of random, mean, or last-observed-carried-forward imputation were ruled out due to the seasonal nature of the data.  Seasonally split and seasonally decomposed imputation methods are provided below.  
 
-The Seasonally Split method separates the data into seasons before imputing missing values for each season.  This method adds dimension, but it is apparent that some imputations are based on micro trends of adjacent years and diverge from the seasonal slope.  The Seasonally Decomposed imputation method removes the seasonal trends of the data set, imputes values based on the de-trended static time series, then reintroduces the seasonal trends.  When applied to the data set, this method applies dimensionality while following a more direct slope between known values than the seasonal split method.  Therefore, I selected Seasonally Decomposed imputation for this model.
+The seasonally split method separates the data into seasons before imputing missing values for each season.  This method adds dimension, but it is apparent that some imputations are based on micro trends of adjacent years and diverge from the seasonal slope.  The Seasonally Decomposed imputation method removes the seasonal trends of the data set, imputes values based on the de-trended static time series, then reintroduces the seasonal trends.  When applied to the data set, this method applies dimensionality while following a more direct slope between known values than the seasonal split method.  Therefore, I selected Seasonally Decomposed imputation for this model.
 
 
 ```{r model prep, imputing missing values}
@@ -548,7 +549,7 @@ pander(accuracy(spred$pred, test))
 
 ### GAM Model Development
 
-I selected a Generalize Additive Model (GAM) as an alternative modeling method.  As GAMs are composed of multiple smooth functions, I hoped the approach would yield an accurate non-linear model derived from separate annual, weekly, and daily functions to determine water temperature.  For this model I use the daily averages of water temperatures instead of the weekly averaged data used in the ARIMA models as the GAM results are more accurate with the added data.  Seasonally Decomposed Interpolation is again used to fill the missing training data.
+I selected a Generalize Additive Model (GAM) as an alternative modeling method.  As GAMs are composed of multiple smooth functions, I hoped the approach would yield an accurate non-linear model derived from separate annual, weekly, and daily functions to determine water temperature.  For this model I use the daily averages of water temperatures instead of the weekly averaged data used in the ARIMA models as the GAM results are more accurate with the added data.  Seasonally decomposed Interpolation is again used to fill the missing training data.
 
 I use a log transformation and adjust K-values to tune the GAM.  The model summary confirms the results are statistically significant with p-values below 0.001.  The concurvity tests indicate high levels of concurvity between the input variables.  While not optimal for many models, this is common with time smooths that utilize multiple units of measure.  I propose that the benefit of smoothing across annual, weekly, and daily segments outweighs the loss in interpretability as each variable is a unit of time.  
 
@@ -623,6 +624,6 @@ accuracy(ts(mltest$full_temp), ts(mltest$gam_preds))
 
 ### Model Comparison
 
-The GAM predictions do not follow as smooth of a predictive line as the ARIMA models; however, the initial few predictions appear to be more accurate.  In comparing the ACF at one lag for each model, the GAM has a higher degree of autocorrelation.  For this test data set the higher ACF does not correspond with a more accurate model, but it does indicate that the GAM is predicting values at a higher correlation with the previous value than the ARIMA models.  For this reason, initial predictions may tend to be more accurate while later predictions may become less so.  In total, the measures of accuracy (RMSE, MAPE, etc.) are lower for the ARIMA models than for the GAM, indicating the ARIMA models are more accurate.  
+The GAM predictions do not follow as smooth of a predictive line as the ARIMA models; however, the initial few predictions appear to be more accurate.  In comparing the ACF at one lag for each model, the GAM has a higher degree of autocorrelation.  For this test data set, the higher ACF does not correspond with a more accurate model, but it does indicate that the GAM is predicting values at a higher correlation with the previous value than the ARIMA models.  For this reason, initial predictions may tend to be more accurate while later predictions may become less so.  In total, the measures of accuracy (RMSE, MAPE, etc.) are lower for the ARIMA models than for the GAM, indicating the ARIMA models are more accurate.  
 
 As with any predictive model, results can be improved through further research, tuning, and testing.  Adjustments to data collection, outlier thresholds, pre-processing, model selection, and hyper-tuning parameters are all relevant areas for improvement.
