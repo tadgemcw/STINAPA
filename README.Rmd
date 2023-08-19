@@ -398,6 +398,7 @@ temp_20m %>% pivot_longer('min_temp':'max_temp',
     geom_histogram(binwidth = 0.1, 
                    alpha = 0.5, 
                    position = "identity") +
+  scale_x_continuous(limits = c(20, NA)) +
     scale_fill_discrete(labels = c("Average", "Maximum", "Minimum")) +
     labs(x = "Temperature (c)", 
          y = "Observations", 
