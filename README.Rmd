@@ -2,7 +2,7 @@
 title: "Analysis of Water Temperature Trends Using GAM & ARIMA Models"
 subtitle: "A Collaboration with STINAPA"
 author: "Tadge McWilliams"
-date: "August 14th, 2023"
+date: "August 18th, 2023"
 output: 
   html_document:
     toc: TRUE
@@ -307,7 +307,7 @@ ggplot(sum_all, aes(date, high_above_avg, color = factor(year))) +
   labs(x = "Time",
        y = "Temperature (c)",
        color = "Year",
-       title = "Maximum Temperature Above Monthly Mean")
+       title = "Maximum Temperature From Monthly Mean")
 
 ```
 
