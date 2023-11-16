@@ -20,7 +20,7 @@ opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```{r loading packages}
 library(readxl)
 library(tidyverse) 
-library(lubridate) # for dates
+library(lubridate)
 library(RColorBrewer) # for colorblind friendly palettes
 library(pander) # for tables
 library(flextable) #for nice table
