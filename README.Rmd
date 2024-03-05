@@ -34,6 +34,7 @@ library(mgcv) #for gam modeling
 
 
 ```{r loading data}
+#data
 setwd("~/Documents/Data Science/STINAPA/Temp & Light Project")
 tl2020 <- read_excel("2020 raw.xlsx", sheet = 1)
 tl2021 <- read_excel("2021 raw.xlsx", sheet = 1)
@@ -113,16 +114,11 @@ ggplot(tl2021, aes(x=factor(month(date)), y = temp_c)) +
     geom_hline(aes(yintercept = 33, col = "33 Degrees")) + 
     geom_hline(aes(yintercept = statoutlier2021, col = "1.5 x IQR")) +
     theme(legend.title=element_blank())
+
 ```
 
 
 ```{r 2022 outliers}
-#ggplot(tl2022, aes(temp_c)) +
-#  geom_bar(width = 0.1) + 
-#  facet_wrap(~depth_m) +
-#  xlab("Temperature (c)") +
-#  ylab("Data Points") +
-#  ggtitle("2022 Distribution by Sensor Depth (m)")
 
 quant2022 <- quantile(tl2022$temp_c, probs = c(0.25, 0.75))
 statoutlier2022 <- (IQR(tl2022$temp_c) * 1.5) + quant2022[2]
@@ -136,12 +132,15 @@ ggplot(tl2022, aes(x=factor(month(date)), y = temp_c)) +
     geom_hline(aes(yintercept = 33, col = "33 Degrees")) + 
     geom_hline(aes(yintercept = statoutlier2022, col = "1.5 x IQR")) +
     theme(legend.title=element_blank())
+
 ```
 
 ```{r removing outliers above 33 degrees}
+
 tl2020_33 <- tl2020 %>% filter(temp_c <= 33)
 tl2021_33 <- tl2021 %>% filter(temp_c <= 33)
 tl2022_33 <- tl2022 %>% filter(temp_c <= 33)
+
 ```
 
 
